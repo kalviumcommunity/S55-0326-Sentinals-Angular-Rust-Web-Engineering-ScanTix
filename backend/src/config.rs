@@ -8,6 +8,8 @@ pub struct Config {
     pub cors_origin: String,
     pub server_host: String,
     pub server_port: u16,
+    pub razorpay_key_id: String,
+    pub razorpay_key_secret: String,
 }
 
 impl Config {
@@ -27,6 +29,10 @@ impl Config {
                 .unwrap_or_else(|_| "8080".to_string())
                 .parse()
                 .expect("SERVER_PORT must be a valid u16"),
+            razorpay_key_id: env::var("RAZORPAY_KEY_ID")
+                .unwrap_or_else(|_| "rzp_test_SRq25vAPGaBqRZ".to_string()),
+            razorpay_key_secret: env::var("RAZORPAY_KEY_SECRET")
+                .unwrap_or_else(|_| "J1fIJPcxFBpySnYhNfwAi6tZ".to_string()),
         }
     }
 }

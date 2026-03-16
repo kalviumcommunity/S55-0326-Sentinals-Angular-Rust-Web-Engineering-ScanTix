@@ -32,6 +32,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/events/:id/seats/generate", post(handlers::seats::generate_event_seats))
         .route("/api/events/:event_id/seats/:seat_id/lock", post(handlers::seats::lock_seat))
         .route("/api/events/:event_id/seats/:seat_id/lock", delete(handlers::seats::unlock_seat))
+        .route("/api/events/:id/seats/lock-batch", post(handlers::seats::lock_seats_batch))
+        .route("/api/events/:id/seats/unlock-batch", post(handlers::seats::unlock_seats_batch))
+        // Tickets
+        .route("/api/validate", post(handlers::validation::validate_ticket))
         // Venues
         .route("/api/venues", post(handlers::venues::create_venue))
         // Tickets
@@ -42,6 +46,9 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/events/:id/staff/assign", post(handlers::staff::assign_staff))
         .route("/api/staff/events", get(handlers::staff::get_assigned_events))
         .route("/api/staff/validate", post(handlers::staff::validate_ticket))
+        // Razorpay Payment
+        .route("/api/payment/create-order", post(handlers::payment::create_razorpay_order))
+        .route("/api/payment/verify", post(handlers::payment::verify_and_book))
         .layer(middleware::from_fn_with_state(state.clone(), auth_middleware));
 
     // Purchase route (auth + rate limiting)

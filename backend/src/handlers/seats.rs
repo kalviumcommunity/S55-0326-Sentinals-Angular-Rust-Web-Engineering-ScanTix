@@ -210,3 +210,106 @@ pub async fn unlock_seat(
         AppError::BadRequest("Seat not found or not locked by you".to_string())
     })
 }
+
+/// POST /api/events/:id/seats/lock-batch — lock multiple seats atomically for payment
+#[derive(serde::Deserialize)]
+pub struct LockBatchRequest {
+    pub seat_ids: Vec<Uuid>,
+}
+
+#[derive(serde::Serialize)]
+pub struct LockBatchResponse {
+    pub seats: Vec<EventSeat>,
+    pub locked_until: chrono::DateTime<chrono::Utc>,
+}
+
+pub async fn lock_seats_batch(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Path(event_id): Path<Uuid>,
+    Json(input): Json<LockBatchRequest>,
+) -> Result<Json<LockBatchResponse>, AppError> {
+    if input.seat_ids.is_empty() {
+        return Err(AppError::BadRequest("No seats provided".to_string()));
+    }
+    if input.seat_ids.len() > 10 {
+        return Err(AppError::BadRequest("Cannot lock more than 10 seats at once".to_string()));
+    }
+
+    let lock_duration = chrono::Duration::minutes(8);
+    let locked_until = Utc::now() + lock_duration;
+
+    let mut tx = state.db.begin().await?;
+    let mut locked_seats: Vec<EventSeat> = Vec::new();
+
+    for seat_id in &input.seat_ids {
+        let updated = sqlx::query_as::<_, EventSeat>(
+            r#"UPDATE event_seats
+               SET status = 'locked',
+                   locked_by = $1,
+                   locked_until = $2
+               WHERE id = $3
+                 AND event_id = $4
+                 AND (status = 'available' OR (status = 'locked' AND locked_by = $1))
+               RETURNING *"#,
+        )
+        .bind(claims.sub)
+        .bind(locked_until)
+        .bind(*seat_id)
+        .bind(event_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        match updated {
+            Some(seat) => locked_seats.push(seat),
+            None => {
+                tx.rollback().await?;
+                return Err(AppError::Conflict(
+                    format!("Seat {} is already taken. Please re-select your seats.", seat_id)
+                ));
+            }
+        }
+    }
+
+    tx.commit().await?;
+
+    Ok(Json(LockBatchResponse {
+        seats: locked_seats,
+        locked_until,
+    }))
+}
+
+/// POST /api/events/:id/seats/unlock-batch — release multiple seats held by caller
+#[derive(serde::Deserialize)]
+pub struct UnlockBatchRequest {
+    pub seat_ids: Vec<Uuid>,
+}
+
+pub async fn unlock_seats_batch(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Path(event_id): Path<Uuid>,
+    Json(input): Json<UnlockBatchRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if input.seat_ids.is_empty() {
+        return Ok(Json(serde_json::json!({ "unlocked": 0 })));
+    }
+
+    let result = sqlx::query(
+        r#"UPDATE event_seats
+           SET status = 'available',
+               locked_by = NULL,
+               locked_until = NULL
+           WHERE id = ANY($1)
+             AND event_id = $2
+             AND locked_by = $3
+             AND status = 'locked'"#,
+    )
+    .bind(&input.seat_ids)
+    .bind(event_id)
+    .bind(claims.sub)
+    .execute(&state.db)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "unlocked": result.rows_affected() })))
+}

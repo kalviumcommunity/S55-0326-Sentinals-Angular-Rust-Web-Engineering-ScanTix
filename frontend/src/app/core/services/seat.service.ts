@@ -42,4 +42,18 @@ export class SeatService {
             `${environment.apiUrl}/events/${eventId}/seats/${seatId}/lock`
         );
     }
+
+    lockSeats(eventId: string, seatIds: string[]): Observable<{ seats: EventSeat[], locked_until: string }> {
+        return this.http.post<{ seats: EventSeat[], locked_until: string }>(
+            `${environment.apiUrl}/events/${eventId}/seats/lock-batch`,
+            { seat_ids: seatIds }
+        );
+    }
+
+    unlockSeats(eventId: string, seatIds: string[]): Observable<{ unlocked: number }> {
+        return this.http.post<{ unlocked: number }>(
+            `${environment.apiUrl}/events/${eventId}/seats/unlock-batch`,
+            { seat_ids: seatIds }
+        );
+    }
 }
