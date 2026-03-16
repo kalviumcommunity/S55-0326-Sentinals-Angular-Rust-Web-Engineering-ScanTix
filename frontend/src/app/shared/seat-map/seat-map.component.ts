@@ -274,7 +274,7 @@ export class SeatMapComponent implements OnInit, OnDestroy {
 
   rows: SeatRow[] = [];
   loading = true;
-  mySeats: EventSeat[] = []; // Seats currently locked by the current user
+  mySeats: EventSeat[] = []; // Seats locally selected (before payment lock)
 
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -393,9 +393,12 @@ export class SeatMapComponent implements OnInit, OnDestroy {
           }
         });
 
-        // Rebuild mySeats from seatsMap (so if server rejected us, it's removed here)
-        this.mySeats = Array.from(this.seatsMap.values())
-          .filter(s => s.status === 'locked' && s.locked_by === this.currentUserId);
+        // Rebuild mySeats — keep locally selected seats if they are still available
+        this.mySeats = this.mySeats.filter(s => {
+          const fresh = this.seatsMap.get(s.id);
+          // Keep if still available or if it's locked by us (we did a payment lock)
+          return fresh && (fresh.status === 'available' || (fresh.status === 'locked' && fresh.locked_by === this.currentUserId));
+        });
 
         const isInitialLoad = this.loading;
         this.rows = this.buildRows(Array.from(this.seatsMap.values()));
@@ -443,17 +446,23 @@ export class SeatMapComponent implements OnInit, OnDestroy {
       }));
   }
 
-  isMyLock(seat: EventSeat): boolean {
+  isMySelection(seat: EventSeat): boolean {
     return this.mySeats.some(s => s.id === seat.id);
   }
 
+  isMyLock(seat: EventSeat): boolean {
+    // locked on server by this user (after payment click)
+    const fresh = this.seatsMap.get(seat.id);
+    return !!fresh && fresh.status === 'locked' && fresh.locked_by === this.currentUserId;
+  }
+
   isSeatDisabled(seat: EventSeat): boolean {
-    if (this.isMyLock(seat)) return false;
+    if (this.isMySelection(seat)) return false;
     return seat.status !== 'available';
   }
 
   getSeatClass(seat: EventSeat): string {
-    if (this.isMyLock(seat)) return 'mine';
+    if (this.isMySelection(seat)) return 'mine';
     if (seat.status === 'locked') return 'locked';
     if (seat.status === 'booked') return 'booked';
     return 'available';
@@ -480,57 +489,27 @@ export class SeatMapComponent implements OnInit, OnDestroy {
 
   onSeatClick(seat: EventSeat) {
     if (this.readOnly) return;
-    if (this.isMyLock(seat)) {
+    if (this.isMySelection(seat)) {
       this.deselect(seat);
     } else if (seat.status === 'available') {
-      this.lockSeat(seat);
+      // Just add to local selection — NO immediate backend lock
+      this.mySeats = [...this.mySeats, seat];
+      this.selectionChanged.emit(this.mySeats);
+      this.cdr.markForCheck();
     }
   }
 
-  private lockSeat(seat: EventSeat) {
-    // Optimistically mark as mine
-    seat.status = 'locked';
-    seat.locked_by = this.currentUserId;
-    this.seatsMap.set(seat.id, seat);
-    this.mySeats = [...this.mySeats, seat];
-    this.rows = this.buildRows(Array.from(this.seatsMap.values()));
+  // Called externally (from event-detail) to reset selection after payment
+  clearSelection() {
+    this.mySeats = [];
+    this.selectionChanged.emit([]);
     this.cdr.markForCheck();
-
-    this.seatService.lockSeat(this.eventId, seat.id).subscribe({
-      next: (resp) => {
-        // Update with accurate server lock_until
-        const updated = { ...resp.seat };
-        this.seatsMap.set(updated.id, updated);
-        this.mySeats = this.mySeats.map(s => s.id === updated.id ? updated : s);
-        this.rows = this.buildRows(Array.from(this.seatsMap.values()));
-        this.selectionChanged.emit(this.mySeats);
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        // Revert optimistic update
-        seat.status = 'available';
-        seat.locked_by = null;
-        this.seatsMap.set(seat.id, seat);
-        this.mySeats = this.mySeats.filter(s => s.id !== seat.id);
-        this.rows = this.buildRows(Array.from(this.seatsMap.values()));
-        this.selectionChanged.emit(this.mySeats);
-        this.cdr.markForCheck();
-      }
-    });
   }
 
   deselect(seat: EventSeat) {
     this.mySeats = this.mySeats.filter(s => s.id !== seat.id);
-    // Optimistically set available
-    seat.status = 'available';
-    seat.locked_by = null;
-    seat.locked_until = null;
-    this.seatsMap.set(seat.id, seat);
-    this.rows = this.buildRows(Array.from(this.seatsMap.values()));
     this.selectionChanged.emit(this.mySeats);
     this.cdr.markForCheck();
-
-    this.seatService.unlockSeat(this.eventId, seat.id).subscribe();
   }
 
   getRowIndex(label: string): number {
