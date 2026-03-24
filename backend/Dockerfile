@@ -7,6 +7,7 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release 2>/dev/null || true
 COPY src/ src/
 COPY migrations/ migrations/
+RUN touch src/main.rs
 RUN cargo build --release
 
 # Runtime stage
