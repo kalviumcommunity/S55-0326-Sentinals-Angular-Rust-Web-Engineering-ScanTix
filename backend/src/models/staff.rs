@@ -41,6 +41,8 @@ pub struct ScannerInfoResponse {
     pub event_id: Uuid,
     pub event_name: String,
     pub event_date: DateTime<Utc>,
+    pub gate_open_time: Option<DateTime<Utc>>,
+    pub event_end_time: Option<DateTime<Utc>>,
     pub daily_scan_count: i64,
     pub staff_name: String,
 }

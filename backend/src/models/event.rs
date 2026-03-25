@@ -13,6 +13,8 @@ pub struct Event {
     pub venue_id: Option<Uuid>,
     pub organizer_id: Uuid,
     pub event_date: DateTime<Utc>,
+    pub gate_open_time: Option<DateTime<Utc>>,
+    pub event_end_time: Option<DateTime<Utc>>,
     pub ticket_price: Decimal,
     pub vip_price: Option<Decimal>,
     pub max_tickets: i32,
@@ -23,6 +25,7 @@ pub struct Event {
     pub seat_columns: Option<i32>,
     pub seat_layout: String,
     pub image_urls: Vec<String>,
+    pub google_maps_url: Option<String>,
     pub refund_policy: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -35,6 +38,8 @@ pub struct CreateEvent {
     pub location: Option<String>,
     pub venue_id: Option<Uuid>,
     pub event_date: DateTime<Utc>,
+    pub gate_open_time: Option<DateTime<Utc>>,
+    pub event_end_time: Option<DateTime<Utc>>,
     pub ticket_price: Decimal,
     pub vip_price: Option<Decimal>,
     pub max_tickets: i32,
@@ -43,6 +48,7 @@ pub struct CreateEvent {
     pub seat_columns: Option<i32>,
     pub seat_layout: Option<String>,
     pub image_urls: Option<Vec<String>>,
+    pub google_maps_url: Option<String>,
     pub refund_policy: String,
 }
 
@@ -52,6 +58,8 @@ pub struct UpdateEvent {
     pub description: Option<String>,
     pub location: Option<String>,
     pub event_date: Option<DateTime<Utc>>,
+    pub gate_open_time: Option<DateTime<Utc>>,
+    pub event_end_time: Option<DateTime<Utc>>,
     pub ticket_price: Option<Decimal>,
     pub vip_price: Option<Decimal>,
     pub max_tickets: Option<i32>,
@@ -61,6 +69,7 @@ pub struct UpdateEvent {
     pub seat_columns: Option<i32>,
     pub seat_layout: Option<String>,
     pub image_urls: Option<Vec<String>>,
+    pub google_maps_url: Option<String>,
     pub refund_policy: Option<String>,
 }
 

@@ -98,6 +98,25 @@ pub async fn create_event(
         return Err(AppError::BadRequest("refund_policy must be REFUNDABLE or NON_REFUNDABLE".to_string()));
     }
 
+    // Validate Google Maps URL if provided
+    if let Some(ref url) = input.google_maps_url {
+        if !url.is_empty() && !url.starts_with("http") {
+            return Err(AppError::BadRequest("google_maps_url must be a valid URL".to_string()));
+        }
+    }
+
+    // Validate timings
+    if let Some(gate_time) = input.gate_open_time {
+        if gate_time > input.event_date {
+            return Err(AppError::BadRequest("Gate open time must be before or equal to event start time".to_string()));
+        }
+    }
+    if let Some(end_time) = input.event_end_time {
+        if end_time <= input.event_date {
+            return Err(AppError::BadRequest("Event end time must be after event start time".to_string()));
+        }
+    }
+
     let seat_map_enabled = input.seat_map_enabled.unwrap_or(false);
     if seat_map_enabled {
         let rows = input.seat_rows.unwrap_or(0);
@@ -112,9 +131,11 @@ pub async fn create_event(
 
     let event = sqlx::query_as::<_, Event>(
         r#"INSERT INTO events (title, description, location, venue_id, organizer_id, event_date,
+                               gate_open_time, event_end_time,
                                ticket_price, vip_price, max_tickets, status,
-                       seat_map_enabled, seat_rows, seat_columns, seat_layout, image_urls, refund_policy)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'published', $10, $11, $12, $13, $14, $15)
+                       seat_map_enabled, seat_rows, seat_columns, seat_layout, image_urls,
+                       google_maps_url, refund_policy)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'published', $12, $13, $14, $15, $16, $17, $18)
            RETURNING *"#,
     )
     .bind(&input.title)
@@ -123,6 +144,8 @@ pub async fn create_event(
     .bind(input.venue_id)
     .bind(claims.sub)
     .bind(input.event_date)
+    .bind(input.gate_open_time)
+    .bind(input.event_end_time)
     .bind(input.ticket_price)
     .bind(input.vip_price)
     .bind(input.max_tickets)
@@ -131,6 +154,7 @@ pub async fn create_event(
     .bind(input.seat_columns)
     .bind(input.seat_layout.unwrap_or_else(|| "grid".to_string()))
     .bind(input.image_urls.unwrap_or_default())
+    .bind(&input.google_maps_url)
     .bind(&input.refund_policy)
     .fetch_one(&state.db)
     .await?;
@@ -166,23 +190,28 @@ pub async fn update_event(
             description = COALESCE($2, description),
             location = COALESCE($3, location),
             event_date = COALESCE($4, event_date),
-            ticket_price = COALESCE($5, ticket_price),
-            vip_price = COALESCE($6, vip_price),
-            max_tickets = COALESCE($7, max_tickets),
-            status = COALESCE($8, status),
-            seat_map_enabled = COALESCE($10, seat_map_enabled),
-            seat_rows = COALESCE($11, seat_rows),
-            seat_columns = COALESCE($12, seat_columns),
-            seat_layout = COALESCE($13, seat_layout),
-            image_urls = COALESCE($14, image_urls),
-            refund_policy = COALESCE($15, refund_policy),
+            gate_open_time = COALESCE($5, gate_open_time),
+            event_end_time = COALESCE($6, event_end_time),
+            ticket_price = COALESCE($7, ticket_price),
+            vip_price = COALESCE($8, vip_price),
+            max_tickets = COALESCE($9, max_tickets),
+            status = COALESCE($10, status),
+            seat_map_enabled = COALESCE($12, seat_map_enabled),
+            seat_rows = COALESCE($13, seat_rows),
+            seat_columns = COALESCE($14, seat_columns),
+            seat_layout = COALESCE($15, seat_layout),
+            image_urls = COALESCE($16, image_urls),
+            google_maps_url = COALESCE($17, google_maps_url),
+            refund_policy = COALESCE($18, refund_policy),
             updated_at = NOW()
-           WHERE id = $9 RETURNING *"#
+           WHERE id = $11 RETURNING *"#
     )
     .bind(input.title)
     .bind(input.description)
     .bind(input.location)
     .bind(input.event_date)
+    .bind(input.gate_open_time)
+    .bind(input.event_end_time)
     .bind(input.ticket_price)
     .bind(input.vip_price)
     .bind(input.max_tickets)
@@ -193,6 +222,7 @@ pub async fn update_event(
     .bind(input.seat_columns)
     .bind(input.seat_layout)
     .bind(input.image_urls)
+    .bind(input.google_maps_url)
     .bind(input.refund_policy)
     .fetch_one(&state.db)
     .await?;

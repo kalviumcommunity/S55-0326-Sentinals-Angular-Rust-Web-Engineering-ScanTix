@@ -4,6 +4,7 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
+use chrono::{Duration, Utc};
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -107,7 +108,6 @@ pub async fn add_staff(
     .unwrap_or_else(|| "Organizer".to_string());
 
     // Build scanner link — format: /scan/{event-slug}/{access_token}
-    // Slug is decorative (human-readable), access_token is what authenticates
     let slug: String = event.title
         .to_lowercase()
         .chars()
@@ -123,7 +123,6 @@ pub async fn add_staff(
     );
 
     // Send invite email (fire-and-forget)
-    // If SMTP credentials are not configured, just log the link for dev convenience
     if state.config.smtp_username.is_empty() || state.config.smtp_password.is_empty() {
         tracing::info!(
             "📧 [DEV] Scanner invite for {} ({}): {}",
@@ -221,6 +220,39 @@ pub async fn restore_staff(
     Ok(Json(staff))
 }
 
+// ─── Helper: check scanner time window ──────────────────────────────────────
+
+#[derive(sqlx::FromRow)]
+struct EventTimings {
+    gate_open_time: Option<chrono::DateTime<Utc>>,
+    event_end_time: Option<chrono::DateTime<Utc>>,
+}
+
+fn check_scanner_time_window(timings: &EventTimings, event_date: chrono::DateTime<Utc>) -> Result<(), AppError> {
+    let now = Utc::now();
+
+    // Check if event has ended
+    if let Some(end_time) = timings.event_end_time {
+        if now > end_time {
+            return Err(AppError::Gone(
+                "This scanner has expired because the event has ended.".to_string(),
+            ));
+        }
+    }
+
+    // Check if scanner window has opened (30 min before gate_open_time or event_date)
+    let reference_time = timings.gate_open_time.unwrap_or(event_date);
+    let access_start = reference_time - Duration::minutes(30);
+
+    if now < access_start {
+        return Err(AppError::Locked(
+            "Scanner will be available 30 minutes before gate open time.".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 // ─── 4.4  GET /api/organizer/events/:eventId/staff/scanner/:accessToken ──────
 
 pub async fn scanner_info(
@@ -244,12 +276,15 @@ pub async fn scanner_info(
         return Err(AppError::Forbidden("Access inactive".to_string()));
     }
 
-    // Fetch event name and date
-    let (event_name, event_date): (String, chrono::DateTime<chrono::Utc>) =
-        sqlx::query_as("SELECT title, event_date FROM events WHERE id = $1")
+    // Fetch event details
+    let (event_name, event_date, gate_open_time, event_end_time): (String, chrono::DateTime<Utc>, Option<chrono::DateTime<Utc>>, Option<chrono::DateTime<Utc>>) =
+        sqlx::query_as("SELECT title, event_date, gate_open_time, event_end_time FROM events WHERE id = $1")
             .bind(event_id)
             .fetch_one(&state.db)
             .await?;
+
+    // Enforce time window
+    check_scanner_time_window(&EventTimings { gate_open_time, event_end_time }, event_date)?;
 
     // Count daily scans for this staff member
     let daily_scan_count: i64 = sqlx::query_scalar(
@@ -264,6 +299,8 @@ pub async fn scanner_info(
         event_id,
         event_name,
         event_date,
+        gate_open_time,
+        event_end_time,
         daily_scan_count,
         staff_name: staff.name,
     }))
@@ -290,6 +327,15 @@ pub async fn scanner_scan(
     if staff.is_revoked {
         return Err(AppError::Forbidden("Access revoked".to_string()));
     }
+
+    // Enforce time window on scan endpoint too
+    let (event_date, gate_open_time, event_end_time): (chrono::DateTime<Utc>, Option<chrono::DateTime<Utc>>, Option<chrono::DateTime<Utc>>) =
+        sqlx::query_as("SELECT event_date, gate_open_time, event_end_time FROM events WHERE id = $1")
+            .bind(event_id)
+            .fetch_one(&state.db)
+            .await?;
+
+    check_scanner_time_window(&EventTimings { gate_open_time, event_end_time }, event_date)?;
 
     // Verify QR HMAC
     let qr_result = qr::verify_qr_payload(&body.qr_data, &state.config.jwt_secret);
@@ -403,8 +449,6 @@ pub async fn scanner_scan(
 }
 
 // ─── Public: GET /api/scanner/:accessToken ───────────────────────────────────
-// Looks up staff by access_token alone (no event_id in path).
-// Returns ScannerInfoResponse including event_id so the frontend can use it.
 
 pub async fn public_scanner_info(
     State(state): State<AppState>,
@@ -427,11 +471,14 @@ pub async fn public_scanner_info(
 
     let event_id = staff.event_id;
 
-    let (event_name, event_date): (String, chrono::DateTime<chrono::Utc>) =
-        sqlx::query_as("SELECT title, event_date FROM events WHERE id = $1")
+    let (event_name, event_date, gate_open_time, event_end_time): (String, chrono::DateTime<Utc>, Option<chrono::DateTime<Utc>>, Option<chrono::DateTime<Utc>>) =
+        sqlx::query_as("SELECT title, event_date, gate_open_time, event_end_time FROM events WHERE id = $1")
             .bind(event_id)
             .fetch_one(&state.db)
             .await?;
+
+    // Enforce time window
+    check_scanner_time_window(&EventTimings { gate_open_time, event_end_time }, event_date)?;
 
     let daily_scan_count: i64 = sqlx::query_scalar(
         r#"SELECT COUNT(*) FROM scanned_tickets
@@ -445,6 +492,8 @@ pub async fn public_scanner_info(
         event_id,
         event_name,
         event_date,
+        gate_open_time,
+        event_end_time,
         daily_scan_count,
         staff_name: staff.name,
     }))

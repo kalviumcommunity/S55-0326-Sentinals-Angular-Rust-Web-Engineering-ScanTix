@@ -30,6 +30,7 @@ pub async fn run_migrations(pool: &PgPool) {
         include_str!("../migrations/017_add_refund_policy_and_ticket_cancellation.sql"),
         include_str!("../migrations/018_replace_event_staff_add_scanned_tickets.sql"),
         include_str!("../migrations/019_fix_event_staff_schema.sql"),
+        include_str!("../migrations/020_add_event_timings_and_maps.sql"),
     ];
 
     for (i, migration) in migrations.iter().enumerate() {

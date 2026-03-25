@@ -239,6 +239,40 @@ pub async fn lock_seats_batch(
     let lock_duration = chrono::Duration::minutes(8);
     let locked_until = Utc::now() + lock_duration;
 
+    // First, check if any requested seats are held by someone else
+    #[derive(sqlx::FromRow)]
+    struct HeldSeat {
+        row_label: String,
+        seat_number: i32,
+    }
+
+    let held_seats: Vec<HeldSeat> = sqlx::query_as(
+        r#"SELECT row_label, seat_number FROM event_seats
+           WHERE id = ANY($1)
+             AND event_id = $2
+             AND status = 'locked'
+             AND locked_by != $3
+             AND locked_until > NOW()"#,
+    )
+    .bind(&input.seat_ids)
+    .bind(event_id)
+    .bind(claims.sub)
+    .fetch_all(&state.db)
+    .await?;
+
+    if !held_seats.is_empty() {
+        let seat_labels: Vec<String> = held_seats
+            .iter()
+            .map(|s| format!("{}{}", s.row_label, s.seat_number))
+            .collect();
+        return Err(AppError::Conflict(
+            format!(
+                "These seats are currently held by someone else: {}. Please choose other seats.",
+                seat_labels.join(", ")
+            )
+        ));
+    }
+
     let mut tx = state.db.begin().await?;
     let mut locked_seats: Vec<EventSeat> = Vec::new();
 

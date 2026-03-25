@@ -109,6 +109,31 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
             <div class="form-group">
+              <label>🚪 Gate Opens At *</label>
+              <input type="datetime-local" class="form-control" [(ngModel)]="gateOpenTime" name="gate_open_time"
+                     [max]="eventDate" required>
+              <small class="form-hint">When gates open for attendees</small>
+            </div>
+            <div class="form-group">
+              <label>🏁 Event Ends At *</label>
+              <input type="datetime-local" class="form-control" [(ngModel)]="eventEndTime" name="event_end_time"
+                     [min]="eventDate" required>
+              <small class="form-hint">When the event officially ends</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>🗺️ Google Maps Venue Link *</label>
+            <input type="url" class="form-control" [(ngModel)]="googleMapsUrl" name="google_maps_url"
+                   placeholder="https://maps.google.com/?q=..." required>
+            <small class="form-hint">Paste the Google Maps link of the venue</small>
+            @if (googleMapsUrl && !isValidMapsUrl(googleMapsUrl)) {
+              <span style="color:var(--danger);font-size:0.78rem">Please enter a valid URL (must start with http)</span>
+            }
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div class="form-group">
               <label>Ticket Price (₹) *</label>
               <input type="text" class="form-control" [(ngModel)]="ticketPrice"
                      name="ticket_price" placeholder="25.00" 
@@ -124,11 +149,13 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
 
           <div class="form-group">
             <label>Refund Policy *</label>
-            <select class="form-control" [(ngModel)]="refundPolicy" name="refund_policy" required>
-              <option value="REFUNDABLE">Refundable Event</option>
-              <option value="NON_REFUNDABLE">Non-Refundable Event</option>
-            </select>
-            <small class="form-hint">
+            <div class="custom-select-wrapper">
+              <select class="form-control custom-select" [(ngModel)]="refundPolicy" name="refund_policy" required>
+                <option value="NON_REFUNDABLE">🔒 Non-Refundable</option>
+                <option value="REFUNDABLE">💸 Refundable (– 24h)</option>
+              </select>
+            </div>
+            <small class="form-hint" style="margin-top:8px; display:block;">
               Refunds are only eligible when ticket cancellation happens at least 24 hours before event start.
             </small>
           </div>
@@ -183,7 +210,6 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
 
                 @if (seatRows && seatColumns) {
                   <div class="seat-preview">
-                    <span class="preview-icon">🗺️</span>
                     <span>
                       Generates
                       <strong>{{ rowRangeLabel }}</strong> ×
@@ -193,20 +219,39 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
                   </div>
 
                   <!-- Mini visual preview -->
-                  <div class="mini-map">
-                    @for (r of previewRows; track r) {
-                      <div class="mini-row">
-                        <span class="mini-label">{{ r }}</span>
-                        @for (c of previewCols; track c) {
-                          <span class="mini-seat"></span>
-                        }
-                        @if (seatColumns > 8) {
-                          <span class="mini-ellipsis">…</span>
+                  <!-- Mini visual preview -->
+                  <div class="mini-map-wrapper">
+                    @if (seatLayout === 'grid') {
+                      <div class="mini-map">
+                        <div class="mini-rows-container">
+                          @for (r of previewRows; track r; let i = $index) {
+                            <div class="mini-row">
+                              <span class="mini-label">{{ r }}</span>
+                              @for (c of previewCols; track c) {
+                                <span class="mini-seat"></span>
+                              }
+                              @if (seatColumns > 8) {
+                                <span class="mini-ellipsis">…</span>
+                              }
+                            </div>
+                          }
+                        </div>
+                        @if (seatRows > 5) {
+                          <div class="mini-more">+ {{ seatRows - 5 }} more row(s)</div>
                         }
                       </div>
-                    }
-                    @if (seatRows > 5) {
-                      <div class="mini-more">+ {{ seatRows - 5 }} more row(s)</div>
+                    } @else {
+                      <div class="mini-stadium-container">
+                        <div class="mini-pitch">PITCH</div>
+                        @for (r of previewRows; track r; let rIdx = $index) {
+                          @for (c of previewCols; track c; let cIdx = $index) {
+                            <div class="stadium-mini-seat" [ngStyle]="getMiniStadiumSeatStyle(rIdx, cIdx, previewCols.length)"></div>
+                          }
+                        }
+                      </div>
+                      @if (seatRows > 5 || seatColumns > 8) {
+                        <div class="mini-more">+ more seats hidden in preview</div>
+                      }
                     }
                   </div>
                 }
@@ -214,6 +259,13 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
             }
           </div>
           <!-- ──────────────────────────────────────────────────────────── -->
+          
+          @if (!loading && !eventForm.valid && eventForm.touched) {
+            <div class="validation-alert" style="margin-top:24px; margin-bottom:-12px; font-weight:600;">
+              <span style="font-size:1.2rem">⚠️</span>
+              <span>Please fill all required fields correctly.</span>
+            </div>
+          }
 
           <div style="display:flex;gap:12px;margin-top:24px">
             <button type="submit" class="btn btn-primary btn-lg" 
@@ -222,9 +274,6 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
                 <span class="spinner" style="width:18px;height:18px;border-width:2px"></span>
               } @else { 🚀 Create Event }
             </button>
-            @if (!loading && !eventForm.valid && eventForm.touched) {
-               <div style="color:#ef4444;font-size:0.85rem;margin-top:8px">Please fill all required fields correctly.</div>
-            }
             @if (seatMapEnabled && seatRows && seatRows > 500) {
               <div style="color:#ef4444;font-size:0.85rem;margin-top:8px">Maximum 500 rows allowed.</div>
             }
@@ -273,22 +322,49 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
     .form-hint { font-size:.75rem; color:var(--text-muted); margin-top:4px; display:block; }
 
     .seat-preview {
-      display:flex; align-items:center; gap:10px; padding:12px 16px;
+      display:flex; align-items:center; justify-content:center; padding:12px 16px;
       background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25);
-      border-radius:8px; margin-top:16px; font-size:.9rem; color:var(--text-secondary);
+      border-radius:8px; margin-top:16px; font-size:.9rem; color:var(--text-secondary); text-align:center;
     }
-    .preview-icon { font-size:1.4rem; }
 
-    .mini-map { margin-top:14px; display:flex; flex-direction:column; gap:4px; }
-    .mini-row { display:flex; align-items:center; gap:3px; }
-    .mini-label { width:20px; font-size:.65rem; font-weight:700; color:var(--text-muted); }
-    .mini-seat {
-      width:14px; height:14px; border-radius:3px 3px 2px 2px;
-      background:rgba(34,197,94,.5); flex-shrink:0;
+    .mini-map { margin-top:14px; display:flex; flex-direction:column; gap:4px; align-items:center; }
+    .mini-rows-container { display:flex; flex-direction:column; gap:4px; width:100%; align-items:center; }
+    .mini-row { display: flex; gap: 4px; align-items: center; justify-content: center; width: 100%; }
+    .mini-label { font-size: 0.65rem; color: var(--text-muted); width: 14px; text-align: right; }
+    .mini-seat { width: 10px; height: 10px; background: rgba(56, 189, 248, 0.4); border-radius: 2px; }
+    .mini-ellipsis { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 1px; margin-left: 4px; }
+    .mini-more { text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
+
+    /* Circular Stadium-specific mini preview */
+    .mini-stadium-container {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 10px auto;
+      border-radius: 50%;
+      background: rgba(34,197,94,.1);
     }
-    .mini-ellipsis { font-size:.7rem; color:var(--text-muted); margin-left:2px; }
-    .mini-more { font-size:.7rem; color:var(--text-muted); margin-top:4px; padding-left:23px; }
-
+    .mini-pitch {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 25px; height: 50px;
+      background: rgba(202, 92, 24, 0.4);
+      border: 1px solid rgba(202, 92, 24, 0.6);
+      font-size: 0.4rem; color: #fef3c7;
+      display: flex; align-items: center; justify-content: center;
+      writing-mode: vertical-lr; text-orientation: upright;
+      letter-spacing: 1px;
+    }
+    .stadium-mini-seat {
+      position: absolute;
+      width: 6px; height: 6px;
+      background: rgba(56, 189, 248, 0.5);
+      border-radius: 2px 2px 0 0;
+      top: 50%; left: 50%;
+      margin-left: -3px; margin-top: -3px;
+    }
+    
     .custom-file-input {
       display: flex;
       align-items: center;
@@ -329,6 +405,42 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
       border-radius: 8px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
+    .custom-select-wrapper { 
+      position: relative; 
+      margin-top: 8px;
+    }
+    .custom-select-wrapper::after {
+      content: "▼";
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .custom-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-color: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border-glass);
+      color: var(--text-primary);
+      padding: 12px 40px 12px 14px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+      height: 48px;
+    }
+    .custom-select:focus, .custom-select:hover {
+      border-color: rgba(56, 189, 248, 0.5);
+      background-color: rgba(15, 23, 42, 0.7);
+    }
+    .custom-select option {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 12px;
+    }
     .suggestion-item {
       padding: 10px 16px;
       cursor: pointer;
@@ -367,6 +479,9 @@ export class EventCreateComponent implements OnInit {
   description = '';
   location = '';
   eventDate = '';
+  gateOpenTime = '';
+  eventEndTime = '';
+  googleMapsUrl = '';
   maxTickets: number | null = null;
   ticketPrice: number | null = null;
   vipPrice: number | null = null;
@@ -589,6 +704,25 @@ export class EventCreateComponent implements OnInit {
     this.previewCols = Array.from({ length: pCols }, (_, i) => i + 1);
   }
 
+  isValidMapsUrl(url: string): boolean {
+    return url.startsWith('http');
+  }
+
+  getMiniStadiumSeatStyle(rowIndex: number, colIndex: number, totalCols: number) {
+    // Determine the distance from the center for this row
+    const radius = 35 + (rowIndex * 8);
+    let angle = 0;
+    // Spread seats across an arc
+    if (totalCols > 1) {
+      const startAngle = -160;
+      const step = 320 / (totalCols - 1);
+      angle = startAngle + (colIndex * step);
+    }
+    return {
+      'transform': `translate(-50%, -50%) rotate(${angle}deg) translateY(${-radius}px)`
+    };
+  }
+
   onSubmit() {
     if (this.seatMapEnabled) {
       if (!this.seatRows || this.seatRows < 1 || this.seatRows > 500) {
@@ -607,6 +741,33 @@ export class EventCreateComponent implements OnInit {
       return;
     }
 
+    if (!this.googleMapsUrl || !this.isValidMapsUrl(this.googleMapsUrl)) {
+      this.error = 'Google Maps URL is required and must be a valid URL starting with http.';
+      return;
+    }
+
+    if (!this.gateOpenTime) {
+      this.error = 'Gate open time is required.';
+      return;
+    } else {
+      const gateDate = new Date(this.gateOpenTime);
+      if (gateDate > selectedDate) {
+        this.error = 'Gate open time must be before or equal to event start time.';
+        return;
+      }
+    }
+
+    if (!this.eventEndTime) {
+      this.error = 'Event end time is required.';
+      return;
+    } else {
+      const endDate = new Date(this.eventEndTime);
+      if (endDate <= selectedDate) {
+        this.error = 'Event end time must be after event start time.';
+        return;
+      }
+    }
+
     this.loading = true;
     this.error = '';
 
@@ -615,6 +776,9 @@ export class EventCreateComponent implements OnInit {
       description: this.description || undefined,
       location: this.location || undefined,
       event_date: selectedDate.toISOString(),
+      gate_open_time: this.gateOpenTime ? new Date(this.gateOpenTime).toISOString() : undefined,
+      event_end_time: this.eventEndTime ? new Date(this.eventEndTime).toISOString() : undefined,
+      google_maps_url: this.googleMapsUrl || undefined,
       max_tickets: this.maxTickets!,
       ticket_price: this.ticketPrice!,
       vip_price: this.vipPrice || undefined,
