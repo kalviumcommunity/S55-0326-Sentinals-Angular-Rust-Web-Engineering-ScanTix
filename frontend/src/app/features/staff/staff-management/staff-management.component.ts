@@ -97,7 +97,7 @@ export function timeAgo(dateStr: string | null): string {
                 <th style="text-align:left;padding:10px 12px;color:var(--text-secondary);font-weight:600">Phone</th>
                 <th style="text-align:left;padding:10px 12px;color:var(--text-secondary);font-weight:600">Scanner Link</th>
                 <th style="text-align:left;padding:10px 12px;color:var(--text-secondary);font-weight:600">Status</th>
-                <th style="text-align:left;padding:10px 12px;color:var(--text-secondary);font-weight:600">Scanned</th>
+                <th style="text-align:left;padding:10px 12px;color:var(--text-secondary);font-weight:600">Total Scans</th>
                 <th style="text-align:left;padding:10px 12px;color:var(--text-secondary);font-weight:600">Actions</th>
               </tr>
             </thead>

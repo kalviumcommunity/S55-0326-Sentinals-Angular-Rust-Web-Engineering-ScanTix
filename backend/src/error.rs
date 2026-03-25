@@ -13,6 +13,10 @@ pub enum AppError {
     NotFound(String),
     Conflict(String),
     TooManyRequests(String),
+    /// 423 Locked — scanner not yet available (before window opens)
+    Locked(String),
+    /// 410 Gone — scanner expired (event has ended)
+    Gone(String),
     Internal(String),
     InternalError(String),
     Database(sqlx::Error),
@@ -27,6 +31,8 @@ impl std::fmt::Display for AppError {
             AppError::NotFound(msg) => write!(f, "Not Found: {}", msg),
             AppError::Conflict(msg) => write!(f, "Conflict: {}", msg),
             AppError::TooManyRequests(msg) => write!(f, "Too Many Requests: {}", msg),
+            AppError::Locked(msg) => write!(f, "Locked: {}", msg),
+            AppError::Gone(msg) => write!(f, "Gone: {}", msg),
             AppError::Internal(msg) => write!(f, "Internal Error: {}", msg),
             AppError::InternalError(msg) => write!(f, "Internal Error: {}", msg),
             AppError::Database(e) => write!(f, "Database Error: {}", e),
@@ -43,6 +49,8 @@ impl IntoResponse for AppError {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             AppError::Conflict(msg) => (StatusCode::CONFLICT, msg.clone()),
             AppError::TooManyRequests(msg) => (StatusCode::TOO_MANY_REQUESTS, msg.clone()),
+            AppError::Locked(msg) => (StatusCode::LOCKED, msg.clone()),
+            AppError::Gone(msg) => (StatusCode::GONE, msg.clone()),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             AppError::Database(e) => {

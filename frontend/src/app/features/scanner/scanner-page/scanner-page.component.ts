@@ -1,9 +1,9 @@
-﻿import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { StaffService, ScannerInfoResponse } from '../../../core/services/staff.service';
 
-export type PageState = 'LOADING' | 'SCANNING' | 'ERROR' | 'REVOKED';
+export type PageState = 'LOADING' | 'SCANNING' | 'ERROR' | 'REVOKED' | 'NOT_YET_AVAILABLE' | 'EXPIRED';
 export type ScanResultState = 'IDLE' | 'CALLING_API' | 'VALID' | 'ALREADY_SCANNED' | 'INVALID';
 
 @Component({
@@ -25,6 +25,17 @@ export type ScanResultState = 'IDLE' | 'CALLING_API' | 'VALID' | 'ALREADY_SCANNE
         <div style="font-size:5rem;margin-bottom:16px">🚫</div>
         <h2 style="color:#ef4444;margin-bottom:8px">Access Revoked</h2>
         <p style="color:#aaa;max-width:320px;text-align:center">Your scanner access has been revoked.</p>
+      </div>
+      <div *ngIf="pageState === 'NOT_YET_AVAILABLE'" class="center-screen">
+        <div style="font-size:5rem;margin-bottom:16px">⏳</div>
+        <h2 style="color:#f59e0b;margin-bottom:8px">Not Yet Available</h2>
+        <p style="color:#aaa;max-width:360px;text-align:center">{{ errorMessage }}</p>
+        <p style="color:#666;margin-top:12px;font-size:0.85rem">Please come back closer to gate open time.</p>
+      </div>
+      <div *ngIf="pageState === 'EXPIRED'" class="center-screen">
+        <div style="font-size:5rem;margin-bottom:16px">🏁</div>
+        <h2 style="color:#6b7280;margin-bottom:8px">Event Ended</h2>
+        <p style="color:#aaa;max-width:360px;text-align:center">{{ errorMessage }}</p>
       </div>
       <div *ngIf="pageState === 'SCANNING'" style="display:flex;flex-direction:column;height:100%">
         <div class="scanner-header">
@@ -124,6 +135,14 @@ export class ScannerPageComponent implements OnInit, OnDestroy {
       error: err => {
         const msg = err.error?.message || '';
         if (err.status === 403 && msg.toLowerCase().includes('revoked')) { this.pageState = 'REVOKED'; }
+        else if (err.status === 423) {
+          this.pageState = 'NOT_YET_AVAILABLE';
+          this.errorMessage = msg || 'Scanner will be available 30 minutes before gate open time.';
+        }
+        else if (err.status === 410) {
+          this.pageState = 'EXPIRED';
+          this.errorMessage = msg || 'This scanner has expired because the event has ended.';
+        }
         else { this.pageState = 'ERROR'; this.errorMessage = err.status === 404 ? 'Scanner link not found.' : (msg || 'Access denied.'); }
         this.cdr.detectChanges();
       }

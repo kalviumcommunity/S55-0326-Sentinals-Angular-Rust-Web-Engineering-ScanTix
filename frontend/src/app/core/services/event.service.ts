@@ -11,6 +11,8 @@ export interface ScanEvent {
     venue_id: string | null;
     organizer_id: string;
     event_date: string;
+    gate_open_time: string | null;
+    event_end_time: string | null;
     ticket_price: string;
     vip_price: string | null;
     max_tickets: number;
@@ -21,6 +23,7 @@ export interface ScanEvent {
     seat_columns: number | null;
     seat_layout: 'grid' | 'stadium';
     image_urls: string[];
+    google_maps_url: string | null;
     refund_policy: 'REFUNDABLE' | 'NON_REFUNDABLE';
     created_at: string;
     updated_at: string;
@@ -32,6 +35,8 @@ export interface CreateEventPayload {
     location?: string;
     venue_id?: string;
     event_date: string;
+    gate_open_time?: string;
+    event_end_time?: string;
     ticket_price: number;
     vip_price?: number;
     max_tickets: number;
@@ -40,6 +45,7 @@ export interface CreateEventPayload {
     seat_columns?: number;
     seat_layout?: 'grid' | 'stadium';
     image_urls?: string[];
+    google_maps_url?: string;
     refund_policy: 'REFUNDABLE' | 'NON_REFUNDABLE';
 }
 
@@ -48,12 +54,15 @@ export interface UpdateEventPayload {
     description?: string;
     location?: string;
     event_date?: string;
+    gate_open_time?: string;
+    event_end_time?: string;
     ticket_price?: number;
     vip_price?: number;
     max_tickets?: number;
     status?: string;
     seat_layout?: 'grid' | 'stadium';
     image_urls?: string[];
+    google_maps_url?: string;
     refund_policy?: 'REFUNDABLE' | 'NON_REFUNDABLE';
 }
 

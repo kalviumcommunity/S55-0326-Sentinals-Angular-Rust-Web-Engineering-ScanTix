@@ -12,6 +12,7 @@ export interface PaymentDetails {
   convenienceFee: number;
   totalAmount: number;
   seats: EventSeat[];
+  quantity?: number;
   event: ScanEvent;
   lockedUntil: string;
 }
@@ -45,16 +46,26 @@ export interface PaymentDetails {
           <h3 class="section-title">Order Summary</h3>
           
           <div class="seats-list">
-            @for (seat of payment.seats; track seat.id) {
+            @if (payment.seats.length > 0) {
+              @for (seat of payment.seats; track seat.id) {
+                <div class="seat-item">
+                  <div class="seat-info">
+                    <span class="seat-icon">🪑</span>
+                    <span>{{ seat.row_label }}{{ seat.seat_number }}</span>
+                    @if (seat.row_label === 'A' || seat.row_label === 'B') {
+                      <span class="vip-tag">VIP</span>
+                    }
+                  </div>
+                  <span class="seat-price">₹{{ getSeatPrice(seat) | number:'1.0-0' }}</span>
+                </div>
+              }
+            } @else {
               <div class="seat-item">
                 <div class="seat-info">
-                  <span class="seat-icon">🪑</span>
-                  <span>{{ seat.row_label }}{{ seat.seat_number }}</span>
-                  @if (seat.row_label === 'A' || seat.row_label === 'B') {
-                    <span class="vip-tag">VIP</span>
-                  }
+                  <span class="seat-icon">🎟️</span>
+                  <span>{{ payment.quantity || 1 }} × Standard Ticket{{ (payment.quantity || 1) > 1 ? 's' : '' }}</span>
                 </div>
-                <span class="seat-price">₹{{ getSeatPrice(seat) | number:'1.0-0' }}</span>
+                <span class="seat-price">₹{{ payment.baseAmount | number:'1.0-0' }}</span>
               </div>
             }
           </div>
@@ -358,7 +369,7 @@ export class PaymentModalComponent implements OnInit, OnDestroy {
       razorpay_signature: rzpResponse.razorpay_signature,
       event_id: order.event_id,
       seat_ids: seatIds.length > 0 ? seatIds : undefined,
-      quantity: seatIds.length > 0 ? undefined : this.payment.seats.length // Or fallback if no seats
+      quantity: seatIds.length > 0 ? undefined : (this.payment.quantity || 1)
     }).subscribe({
       next: () => {
         this.statusMessage = 'Payment successful!';

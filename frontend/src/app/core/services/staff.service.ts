@@ -29,6 +29,8 @@ export interface ScannerInfoResponse {
   event_id: string;
   event_name: string;
   event_date: string;
+  gate_open_time: string | null;
+  event_end_time: string | null;
   daily_scan_count: number;
   staff_name: string;
 }

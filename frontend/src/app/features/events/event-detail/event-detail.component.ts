@@ -85,6 +85,30 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
                 </div>
               </div>
             }
+            @if (event.gate_open_time) {
+              <div class="detail-item">
+                <span>🚪</span>
+                <div>
+                  <div class="detail-label">Gate Opens</div>
+                  <div class="detail-value">
+                    {{ event.gate_open_time | date:'EEE, MMM d' }}<br>
+                    <span style="color:var(--accent-primary)">{{ event.gate_open_time | date:'h:mm a' }} IST</span>
+                  </div>
+                </div>
+              </div>
+            }
+            @if (event.event_end_time) {
+              <div class="detail-item">
+                <span>🏁</span>
+                <div>
+                  <div class="detail-label">Event Ends</div>
+                  <div class="detail-value">
+                    {{ event.event_end_time | date:'EEE, MMM d' }}<br>
+                    <span style="color:var(--accent-primary)">{{ event.event_end_time | date:'h:mm a' }} IST</span>
+                  </div>
+                </div>
+              </div>
+            }
             <div class="detail-item">
               <span>🎟️</span>
               <div>
@@ -107,6 +131,18 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
                 <div>
                   <div class="detail-label">Seat Layout</div>
                   <div class="detail-value">{{ event.seat_rows }} rows × {{ event.seat_columns }} seats</div>
+                </div>
+              </div>
+            }
+            @if (event.google_maps_url) {
+              <div class="detail-item">
+                <span>🗺️</span>
+                <div>
+                  <div class="detail-label">Venue Map</div>
+                  <a [href]="event.google_maps_url" target="_blank" rel="noopener noreferrer"
+                     style="color:var(--accent-primary);font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+                    View on Google Maps ↗
+                  </a>
                 </div>
               </div>
             }
@@ -249,7 +285,23 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
         (cancelled)="onPaymentCancelled()"
       ></app-payment-modal>
     }
+
+    <!-- Held Seats Conflict Popup -->
+    @if (heldSeatsMessage) {
+      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1001;display:flex;align-items:center;justify-content:center;padding:16px">
+        <div style="background:#1e293b;border:1px solid rgba(239,68,68,0.3);border-radius:20px;padding:32px;max-width:420px;width:100%;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.6)">
+          <div style="font-size:3rem;margin-bottom:16px">🚔</div>
+          <h3 style="color:#ef4444;margin:0 0 12px;font-size:1.2rem">Seats Already Held</h3>
+          <p style="color:#94a3b8;margin:0 0 24px;line-height:1.6">{{ heldSeatsMessage }}</p>
+          <button class="btn btn-primary" (click)="heldSeatsMessage = ''"
+                  style="background:linear-gradient(135deg,#ef4444,#b91c1c);border:none">
+            Choose Other Seats
+          </button>
+        </div>
+      </div>
+    }
   `,
+
   styles: [`
     .price-tag { text-align:right; padding:16px 24px; background:var(--bg-card); border-radius:var(--radius-md); border:1px solid var(--border-glass); }
     .price-label { font-size:.75rem; color:var(--text-muted); text-transform:uppercase; }
@@ -305,7 +357,10 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   staffEmail = '';
   assigningStaff = false;
   staffSuccess = '';
-  staffError = '';  constructor(
+  staffError = '';
+  heldSeatsMessage = '';
+
+  constructor(
     private route: ActivatedRoute,
     private router: Router,
     private eventService: EventService,
@@ -382,7 +437,12 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.lockingSeats = false;
-        this.purchaseError = err.error?.message || 'Could not lock selected seats. Another user may have taken them.';
+        const errMsg: string = err.error?.message || '';
+        if (err.status === 409 && errMsg.includes('held by someone else')) {
+          this.heldSeatsMessage = errMsg;
+        } else {
+          this.purchaseError = errMsg || 'Could not lock selected seats. Another user may have taken them.';
+        }
         this.cdr.detectChanges();
       }
     });
@@ -434,6 +494,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       convenienceFee: fee,
       totalAmount: total,
       seats: [],
+      quantity: this.quantity,
       event: this.event,
       lockedUntil: new Date(Date.now() + 8 * 60 * 1000).toISOString()
     };
