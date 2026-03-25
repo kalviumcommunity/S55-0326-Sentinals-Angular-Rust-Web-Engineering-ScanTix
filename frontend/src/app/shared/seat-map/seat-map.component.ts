@@ -232,6 +232,7 @@ interface SeatRow {
     }
 
     .countdown {
+      display: none !important;
       position:absolute; bottom:-16px; left:50%; transform:translateX(-50%);
       font-size:.6rem; color:#a78bfa; white-space:nowrap; pointer-events:none;
     }
