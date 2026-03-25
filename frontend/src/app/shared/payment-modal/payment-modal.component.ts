@@ -95,6 +95,10 @@ export interface PaymentDetails {
           </div>
           
           <div class="action-stack">
+            <button class="cancel-link" (click)="onCancel()" [disabled]="processing">
+              Cancel
+            </button>
+            
             <button class="btn btn-primary razorpay-btn" (click)="payWithRazorpay()" [disabled]="processing">
               @if (processing) {
                 <span class="spinner" style="width:18px;height:18px;border-width:2px;margin-right:8px"></span>
@@ -105,10 +109,6 @@ export interface PaymentDetails {
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/></svg>
                 </span>
               }
-            </button>
-            
-            <button class="cancel-link" (click)="onCancel()" [disabled]="processing">
-              Cancel and release seats
             </button>
           </div>
         </div>
@@ -123,11 +123,13 @@ export interface PaymentDetails {
     .checkout-backdrop {
       position: fixed; inset: 0; background: rgba(8, 12, 16, 0.9);
       backdrop-filter: blur(12px); z-index: 1000;
-      display: flex; align-items: center; justify-content: center; padding: 16px;
+      display: flex; align-items: flex-start; justify-content: center; padding: 80px 16px 40px 16px;
+      overflow-y: auto;
     }
     .checkout-card {
       width: 100%; max-width: 440px; padding: 0;
-      max-height: 95vh; overflow-y: auto;
+      margin: 0 auto; display: flex; flex-direction: column;
+      max-height: calc(100vh - 120px); overflow: hidden;
       border-radius: 24px;
       background: linear-gradient(145deg, #1e293b, #0f172a);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -141,6 +143,7 @@ export interface PaymentDetails {
       padding: 24px 24px;
       position: relative;
       overflow: hidden;
+      flex-shrink: 0;
     }
     .checkout-header::after {
       content: ''; position: absolute; top:0; left:0; right:0; height:1px;
@@ -178,13 +181,20 @@ export interface PaymentDetails {
       border-radius: 16px;
       padding: 20px 0;
       position: relative;
+      flex: 1; min-height: 0; overflow-y: auto;
     }
+    .order-container::-webkit-scrollbar { width: 4px; }
+    .order-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 4px; margin: 10px 0; }
+    .order-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
     .section-title {
       font-size: 0.75rem; color: #64748b; margin: 0 20px 16px;
       text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+      flex-shrink: 0;
     }
     
-    .seats-list { margin: 0 20px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .seats-list { 
+      margin: 0 20px 16px; display: flex; flex-direction: column; gap: 10px; 
+    }
     .seat-item {
       display: flex; justify-content: space-between; align-items: center;
       padding: 12px 14px; background: rgba(30, 41, 59, 0.6);
@@ -215,7 +225,7 @@ export interface PaymentDetails {
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
 
-    .payment-section { padding: 24px; text-align: center; }
+    .payment-section { padding: 24px; text-align: center; flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.05); }
     .secure-badge {
       display: inline-flex; align-items: center; gap: 6px;
       color: #10b981; font-size: 0.75rem; font-weight: 600;
@@ -227,7 +237,7 @@ export interface PaymentDetails {
       border: none; box-shadow: 0 10px 25px -5px rgba(14, 165, 233, 0.4);
       height: 52px; font-size: 1.05rem; font-weight: 700;
       border-radius: 12px; transition: all 0.3s ease;
-      width: 100%; display: block;
+      flex: 1; display: flex; align-items: center; justify-content: center;
     }
     .razorpay-btn:hover {
       transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(14, 165, 233, 0.5);
@@ -235,16 +245,16 @@ export interface PaymentDetails {
     .btn-content { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; }
     
     .action-stack {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 20px; width: 100%;
+      display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+      gap: 16px; width: 100%;
     }
     .cancel-link {
-      background: transparent; border: none; color: #64748b;
-      font-size: 0.95rem; font-weight: 500; cursor: pointer;
-      text-decoration: underline; text-decoration-color: transparent;
-      transition: all 0.2s; padding: 4px;
+      background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #cbd5e1;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 12px;
+      height: 52px; padding: 0 20px; flex-shrink: 0;
+      transition: all 0.2s; display: flex; align-items: center; justify-content: center;
     }
-    .cancel-link:hover { color: #94a3b8; text-decoration-color: currentColor; }
+    .cancel-link:hover { background: rgba(255, 255, 255, 0.1); color: #f8fafc; }
   `]
 })
 export class PaymentModalComponent implements OnInit, OnDestroy {
