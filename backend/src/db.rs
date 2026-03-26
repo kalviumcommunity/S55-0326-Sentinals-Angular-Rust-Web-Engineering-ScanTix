@@ -33,6 +33,8 @@ pub async fn run_migrations(pool: &PgPool) {
         include_str!("../migrations/020_add_event_timings_and_maps.sql"),
         include_str!("../migrations/021_create_organizer_bank_details.sql"),
         include_str!("../migrations/022_create_cancellation_tables.sql"),
+        include_str!("../migrations/023_add_cancellation_type_to_tickets.sql"),
+        include_str!("../migrations/024_create_ticket_holds.sql"),
     ];
 
     for (i, migration) in migrations.iter().enumerate() {

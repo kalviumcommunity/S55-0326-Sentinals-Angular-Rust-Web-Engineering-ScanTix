@@ -77,6 +77,7 @@ pub struct UpdateEvent {
 pub struct EventStats {
     pub event_id: Uuid,
     pub title: String,
+    pub seat_map_enabled: bool,
     pub tickets_sold: i32,
     pub max_tickets: i32,
     pub remaining: i32,

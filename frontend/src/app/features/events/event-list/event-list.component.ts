@@ -119,7 +119,7 @@ import { DomSanitizer, SafeStyle } from '@angular/platform-browser';
               }
               <div class="event-card-body">
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
-                  <h3 style="font-size:1.15rem;font-family:'Outfit',sans-serif;line-height:1.3">{{ event.title }}</h3>
+                  <h3 style="font-size:1.15rem;font-family:'Poppins',sans-serif;line-height:1.3">{{ event.title }}</h3>
                 </div>
 
                 <span class="badge" [class]="event.refund_policy === 'REFUNDABLE' ? 'badge-success' : 'badge-danger'" style="margin-bottom:10px">
@@ -160,7 +160,7 @@ import { DomSanitizer, SafeStyle } from '@angular/platform-browser';
     .event-card-body { padding: 24px; }
     .event-meta { display:flex; flex-wrap:wrap; gap:12px; }
     .meta-item { font-size:0.82rem; color:var(--text-secondary); }
-    .progress-bar { height:4px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+    .progress-bar { height:4px; background:rgba(255, 255, 255, 0.18); border-radius:2px; overflow:hidden; }
     .progress-fill { height:100%; background:var(--accent-gradient); border-radius:2px; transition:width 0.5s ease; }
     
     .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); z-index:1000; display:flex; align-items:flex-start; justify-content:center; padding-top:100px; padding-left:24px; padding-right:24px; padding-bottom:24px; }

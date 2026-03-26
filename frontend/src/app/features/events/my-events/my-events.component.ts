@@ -80,13 +80,13 @@ import { AuthService } from '../../../core/services/auth.service';
 
                 <div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap">
                   <div style="text-align:center">
-                    <div style="font-size:1.4rem;font-weight:700;font-family:'Outfit',sans-serif" class="gradient-text">
+                    <div style="font-size:1.4rem;font-weight:700;font-family:'Poppins',sans-serif" class="gradient-text">
                       {{ event.tickets_sold }}<span style="font-size:0.9rem;color:var(--text-muted)">/{{ event.max_tickets }}</span>
                     </div>
                     <div style="font-size:0.75rem;color:var(--text-muted)">TICKETS SOLD</div>
                   </div>
                   <div style="text-align:center">
-                    <div style="font-size:1.4rem;font-weight:700;font-family:'Outfit',sans-serif;color:var(--success)">
+                    <div style="font-size:1.4rem;font-weight:700;font-family:'Poppins',sans-serif;color:var(--success)">
                       &#8377;{{ getRevenue(event) }}
                     </div>
                     <div style="font-size:0.75rem;color:var(--text-muted)">REVENUE</div>
@@ -196,7 +196,7 @@ import { AuthService } from '../../../core/services/auth.service';
     .close-btn { background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer; }
     .warning-box { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); padding:20px; border-radius:12px; color:#fca5a5; }
     .modal-footer { display:flex; gap:12px; margin-top:32px; justify-content:flex-end; }
-    .btn-danger { background:var(--danger); color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer; font-family:'Outfit',sans-serif; }
+    .btn-danger { background:var(--danger); color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer; font-family:'Poppins',sans-serif; }
     .btn-danger:hover { background:#dc2626; box-shadow:0 0 15px rgba(239,68,68,0.4); }
     .btn-danger:disabled { opacity:0.6; cursor:not-allowed; }
     .error-banner { background:rgba(239,68,68,0.15); color:#fca5a5; padding:12px; border-radius:8px; font-size:0.85rem; border:1px solid var(--danger); }

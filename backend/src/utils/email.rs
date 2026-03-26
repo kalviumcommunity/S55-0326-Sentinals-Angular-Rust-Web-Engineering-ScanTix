@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, FixedOffset};
 use lettre::{
     message::header::ContentType,
     transport::smtp::authentication::Credentials,
@@ -44,7 +44,10 @@ pub async fn send_scanner_invite(
     scanner_link: &str,
     config: &Config,
 ) -> Result<(), String> {
-    let event_date_formatted = event_date.format("%B %d, %Y at %H:%M UTC").to_string();
+    // Convert to IST (UTC+5:30)
+    let ist_offset = FixedOffset::east_opt(5 * 3600 + 30 * 60).unwrap();
+    let ist_date = event_date.with_timezone(&ist_offset);
+    let event_date_formatted = ist_date.format("%B %d, %Y at %H:%M IST").to_string();
 
     let (subject, body) = build_scanner_invite_body(
         to_name,
@@ -105,7 +108,7 @@ mod tests {
             "Alice",
             "Bob Organizer",
             "Tech Summit 2025",
-            "March 20, 2025 at 09:00 UTC",
+            "March 20, 2025 at 14:30 IST",
             "http://localhost:4200/scan/abc-token",
         );
 
@@ -113,7 +116,7 @@ mod tests {
         assert!(body.contains("Alice"), "body must contain staff name");
         assert!(body.contains("Bob Organizer"), "body must contain organizer name");
         assert!(body.contains("Tech Summit 2025"), "body must contain event name");
-        assert!(body.contains("March 20, 2025 at 09:00 UTC"), "body must contain event date");
+        assert!(body.contains("March 20, 2025 at 14:30 IST"), "body must contain event date in IST");
         assert!(body.contains("http://localhost:4200/scan/abc-token"), "body must contain scanner link");
     }
 

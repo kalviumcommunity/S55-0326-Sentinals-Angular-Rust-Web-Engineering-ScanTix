@@ -95,7 +95,7 @@ async fn main() {
 
     // Spawn background task: auto-expire seat locks every 30 seconds
     {
-        let db = bg_db;
+        let db = bg_db.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
             loop {
@@ -116,6 +116,31 @@ async fn main() {
                     }
                     Err(e) => {
                         tracing::error!("Failed to expire seat locks: {}", e);
+                    }
+                }
+            }
+        });
+    }
+
+    // Spawn background task: auto-expire ticket holds every 60 seconds
+    {
+        let db = bg_db;
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60));
+            loop {
+                interval.tick().await;
+                match sqlx::query("DELETE FROM ticket_holds WHERE expires_at < NOW()")
+                    .execute(&db)
+                    .await
+                {
+                    Ok(result) => {
+                        let deleted = result.rows_affected();
+                        if deleted > 0 {
+                            tracing::info!("🗑️ Cleaned up {} expired ticket hold(s)", deleted);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to clean up ticket holds: {}", e);
                     }
                 }
             }

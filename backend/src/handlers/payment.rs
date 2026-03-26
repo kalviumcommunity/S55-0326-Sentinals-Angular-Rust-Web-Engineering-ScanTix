@@ -224,6 +224,31 @@ pub async fn verify_and_book(
 
         let mut tx = state.db.begin().await?;
 
+        // 1. Check/Consume hold or check availability
+        let hold_exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM ticket_holds WHERE event_id = $1 AND user_id = $2 AND expires_at > NOW())"
+        )
+        .bind(input.event_id)
+        .bind(claims.sub)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if !hold_exists {
+            // Safety check if no hold (though frontend should have created one)
+            let held_by_others: i64 = sqlx::query_scalar(
+                "SELECT COALESCE(SUM(quantity), 0) FROM ticket_holds WHERE event_id = $1 AND expires_at > NOW() AND user_id != $2"
+            )
+            .bind(input.event_id)
+            .bind(claims.sub)
+            .fetch_one(&mut *tx)
+            .await?;
+
+            let available = event.max_tickets - event.tickets_sold - held_by_others as i32;
+            if quantity > available {
+                return Err(AppError::Conflict("Tickets are no longer available (held by others)".to_string()));
+            }
+        }
+
         let order = sqlx::query_as::<_, Order>(
               "INSERT INTO orders (user_id, event_id, total_amount, quantity, ticket_type, order_status, razorpay_order_id, razorpay_payment_id) 
                VALUES ($1, $2, $3, $4, $5, 'paid', $6, $7) RETURNING *"
@@ -233,8 +258,8 @@ pub async fn verify_and_book(
         .bind(total)
         .bind(quantity)
         .bind(ticket_type)
-           .bind(&input.razorpay_order_id)
-           .bind(&input.razorpay_payment_id)
+        .bind(&input.razorpay_order_id)
+        .bind(&input.razorpay_payment_id)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -261,6 +286,13 @@ pub async fn verify_and_book(
         sqlx::query("UPDATE events SET tickets_sold = tickets_sold + $1 WHERE id = $2")
             .bind(quantity)
             .bind(input.event_id)
+            .execute(&mut *tx)
+            .await?;
+
+        // 2. Consume my hold if any
+        sqlx::query("DELETE FROM ticket_holds WHERE event_id = $1 AND user_id = $2")
+            .bind(input.event_id)
+            .bind(claims.sub)
             .execute(&mut *tx)
             .await?;
 

@@ -95,19 +95,18 @@ pub async fn generate_event_seats(
         ));
     }
 
-    // Idempotent: delete existing available seats and regenerate
-    let existing = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM event_seats WHERE event_id = $1",
-    )
-    .bind(event_id)
-    .fetch_one(&state.db)
-    .await?;
-
-    if existing > 0 {
+    // Allow regeneration ONLY if no tickets have been sold yet
+    if event.tickets_sold > 0 {
         return Err(AppError::BadRequest(
-            "Seats have already been generated for this event".to_string(),
+            "Cannot regenerate seats after tickets have been sold".to_string(),
         ));
     }
+
+    // Idempotent: delete existing seats and regenerate (since tickets_sold is 0, they are all available/locked)
+    sqlx::query("DELETE FROM event_seats WHERE event_id = $1")
+        .bind(event_id)
+        .execute(&state.db)
+        .await?;
 
     let mut seats = Vec::new();
     for r in 0..rows {

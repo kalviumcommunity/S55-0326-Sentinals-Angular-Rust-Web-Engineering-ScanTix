@@ -42,6 +42,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/events/:id", put(handlers::events::update_event))
         .route("/api/events/:id", delete(handlers::events::delete_event))
         .route("/api/events/:id/cancel", post(handlers::events::cancel_event))
+        .route("/api/events/:id/hold", post(handlers::tickets::hold_tickets))
+        .route("/api/events/:id/hold/:hold_id", delete(handlers::tickets::release_hold))
         .route("/api/events/:id/images", post(handlers::events::upload_event_images))
         // Seat map management (organizer)
         .route("/api/events/:id/seats/generate", post(handlers::seats::generate_event_seats))

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 /* ========== CSS Variables / Design Tokens ========== */
 :root {
@@ -6,8 +6,8 @@
   --bg-primary: #09090b;
   --bg-secondary: #18181b;
   --bg-card: rgba(255, 255, 255, 0.04);
-  --bg-card-hover: rgba(255, 255, 255, 0.08);
-  --bg-glass: rgba(255, 255, 255, 0.06);
+  --bg-card-hover: rgba(255, 255, 255, 0);
+  --bg-glass: rgba(255, 255, 255, 0.05);
   --border-glass: rgba(255, 255, 255, 0.1);
 
   --text-primary: #f4f4f5;
@@ -17,7 +17,7 @@
   --accent-primary: #eab308;
   --accent-secondary: #facc15;
   --accent-gradient: linear-gradient(135deg, #facc15 0%, #eab308 50%, #ca8a04 100%);
-  --accent-glow: rgba(234, 179, 8, 0.3);
+  --accent-glow: rgba(115, 3, 220, 0.45);
 
   --success: #10b981;
   --warning: #f97316;
@@ -25,8 +25,8 @@
   --info: #06b6d4;
 
   /* Typography */
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* Spacing */
   --radius-sm: 8px;
@@ -38,7 +38,7 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 30px var(--accent-glow);
+  --shadow-glow: 0 0 35px var(--accent-glow);
 
   /* Transitions */
   --transition-fast: 0.15s ease;
@@ -113,9 +113,9 @@ a:hover {
 
 .glass-card:hover {
   background: var(--bg-card-hover);
-  border-color: rgba(234, 179, 8, 0.2);
-  box-shadow: var(--shadow-glow);
-  transform: translateY(-2px);
+  border-color: rgba(83, 99, 2, 0.4);
+  box-shadow: 0 20px 50px rgba(112, 141, 6, 0.066);
+  transform: translateY(-4px);
 }
 
 .gradient-text {
@@ -164,6 +164,7 @@ a:hover {
 }
 
 .btn-primary:hover {
+  color: #000;
   box-shadow: 0 6px 25px rgba(234, 179, 8, 0.5);
   transform: translateY(-1px);
 }

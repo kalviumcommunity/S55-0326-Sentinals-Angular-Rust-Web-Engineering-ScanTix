@@ -123,19 +123,21 @@ import { ImageCropperComponent, CroppedEvent } from '../../../shared/image-cropp
             }
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div [style.display]="seatMapEnabled ? 'grid' : 'block'" [style.grid-template-columns]="seatMapEnabled ? '1fr 1fr' : 'none'" style="gap:20px">
             <div class="form-group">
               <label>Ticket Price (₹) *</label>
               <input type="text" class="form-control" [(ngModel)]="ticketPrice"
                      name="ticket_price" placeholder="25.00" 
                      (input)="enforceDecimal($event)" required>
             </div>
-            <div class="form-group">
-              <label>VIP Price (₹) *</label>
-              <input type="text" class="form-control" [(ngModel)]="vipPrice"
-                     name="vip_price" placeholder="75.00" 
-                     (input)="enforceDecimal($event)" required>
-            </div>
+            @if (seatMapEnabled) {
+              <div class="form-group">
+                <label>VIP Price (₹) *</label>
+                <input type="text" class="form-control" [(ngModel)]="vipPrice"
+                       name="vip_price" placeholder="75.00" 
+                       (input)="enforceDecimal($event)" required>
+              </div>
+            }
           </div>
 
           <div class="form-group">

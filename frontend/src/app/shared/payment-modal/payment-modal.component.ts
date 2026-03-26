@@ -75,10 +75,6 @@ export interface PaymentDetails {
               <span>Subtotal</span>
               <span>₹{{ payment.baseAmount | number:'1.0-0' }}</span>
             </div>
-            <div class="calc-row fee-row">
-              <span>Convenience Fee (2%)</span>
-              <span>₹{{ payment.convenienceFee | number:'1.2-2' }}</span>
-            </div>
             <div class="divider-dashed"></div>
             <div class="calc-row grand-total">
               <span>Total</span>
@@ -165,7 +161,7 @@ export interface PaymentDetails {
       background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(234, 179, 8, 0.3);
       color: #eab308; padding: 6px 12px; border-radius: 99px;
       font-weight: 600; font-size: 0.9rem; font-family: monospace;
-      box-shadow: 0 0 15px rgba(234, 179, 8, 0.1);
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
     }
     .countdown-badge.urgent {
       border-color: rgba(239, 68, 68, 0.5); color: #ef4444;

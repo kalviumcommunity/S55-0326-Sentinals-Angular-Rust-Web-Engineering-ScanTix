@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -32,9 +32,18 @@ import { AuthService } from '../../../core/services/auth.service';
 
           <div class="form-group">
             <label for="password">Password</label>
-            <input id="password" type="password" class="form-control"
-                   [(ngModel)]="password" name="password"
-                   placeholder="••••••••" required>
+            <div class="password-input-wrapper">
+              <input id="password" [type]="showPassword ? 'text' : 'password'" class="form-control"
+                     [(ngModel)]="password" name="password"
+                     placeholder="••••••••" required>
+              <button type="button" class="password-toggle" (click)="showPassword = !showPassword" tabindex="-1">
+                @if (showPassword) {
+                  <span class="toggle-icon">👁️‍🗨️</span>
+                } @else {
+                  <span class="toggle-icon">👁️</span>
+                }
+              </button>
+            </div>
           </div>
 
           <button type="submit" class="btn btn-primary btn-lg" style="width:100%" [disabled]="loading">
@@ -96,6 +105,31 @@ import { AuthService } from '../../../core/services/auth.service';
       color: var(--text-secondary);
       font-size: 0.9rem;
     }
+
+    .password-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: color 0.2s;
+    }
+
+    .password-toggle:hover {
+      color: var(--accent-primary);
+    }
   `]
 })
 export class LoginComponent {
@@ -103,15 +137,23 @@ export class LoginComponent {
   password = '';
   error = '';
   loading = false;
+  showPassword = false;
 
-  constructor(private auth: AuthService, private router: Router) { }
+  constructor(
+    private auth: AuthService,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) { }
 
   onSubmit() {
     this.loading = true;
     this.error = '';
 
     this.auth.login(this.email, this.password).pipe(
-      finalize(() => this.loading = false)
+      finalize(() => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      })
     ).subscribe({
       next: () => {
         this.router.navigate(['/dashboard']);

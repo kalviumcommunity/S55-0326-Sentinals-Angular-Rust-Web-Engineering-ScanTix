@@ -16,6 +16,7 @@ pub struct Ticket {
     pub refund_status: String,
     pub scanned_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
+    pub cancellation_type: String,
     // Joined fields
     #[sqlx(default)]
     pub event_title: Option<String>,
@@ -35,6 +36,8 @@ pub struct Ticket {
     pub event_location: Option<String>,
     #[sqlx(default)]
     pub google_maps_url: Option<String>,
+    #[sqlx(default)]
+    pub seat_label: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,4 +90,16 @@ pub struct TicketWithQr {
     pub event_date: DateTime<Utc>,
     pub seat_label: Option<String>,
     pub event_status: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HoldRequest {
+    pub quantity: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HoldResponse {
+    pub hold_id: Uuid,
+    pub quantity: i32,
+    pub expires_at: DateTime<Utc>,
 }

@@ -43,7 +43,7 @@ export type ScanResultState = 'IDLE' | 'CALLING_API' | 'VALID' | 'ALREADY_SCANNE
             <div class="event-name">{{ scannerInfo?.event_name }}</div>
             <div class="event-date">{{ scannerInfo?.event_date | date:'mediumDate' }} &bull; {{ scannerInfo?.staff_name }}</div>
           </div>
-          <div class="session-counter">Today: <strong>{{ sessionCount }}</strong></div>
+          <div class="session-counter">Scans: <strong>{{ sessionCount }}</strong></div>
         </div>
         <div class="video-wrapper">
           <video #videoEl autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
@@ -74,17 +74,17 @@ export type ScanResultState = 'IDLE' | 'CALLING_API' | 'VALID' | 'ALREADY_SCANNE
     </div>
   `,
   styles: [`
-    :host { display:block; position:fixed; inset:0; z-index:9999; }
-    .scanner-fullscreen { position:fixed; inset:0; background:#0a0a0f; color:#fff; display:flex; flex-direction:column; font-family:system-ui,sans-serif; }
+    :host { display:block; min-height: calc(100vh - 64px); }
+    .scanner-fullscreen { min-height: calc(100vh - 64px); background:#0a0a0f; color:#fff; display:flex; flex-direction:column; font-family:'Poppins',sans-serif; }
     .center-screen { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; }
     .spinner-lg { width:48px; height:48px; border:4px solid rgba(255,255,255,0.1); border-top-color:#a78bfa; border-radius:50%; animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    .scanner-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:rgba(255,255,255,0.05); border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0; }
+    .scanner-header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:rgba(0,0,0,0.4); border-bottom:1px solid rgba(255,255,255,0.1); flex-shrink:0; }
     .event-name { font-size:1.1rem; font-weight:700; }
     .event-date { font-size:0.82rem; color:#aaa; margin-top:2px; }
     .session-counter { font-size:0.88rem; color:#aaa; }
-    .session-counter strong { color:#a78bfa; font-size:1.2rem; }
-    .video-wrapper { flex:1; position:relative; margin:16px; border-radius:12px; overflow:hidden; background:#111; }
+    .session-counter strong { color:#a78bfa; font-size:0.88rem; }
+    .video-wrapper { flex:1; position:relative; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; }
     .result-overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:12px; animation:fadeIn 0.2s ease; }
     @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
     .result-overlay.green  { background:rgba(16,185,129,0.88); }

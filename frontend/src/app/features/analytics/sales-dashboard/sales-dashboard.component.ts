@@ -54,16 +54,17 @@ import { StaffManagementComponent } from '../../staff/staff-management/staff-man
           <div class="glass-card" style="padding:24px">
             <h3 style="margin-bottom:20px">Ticket Breakdown</h3>
             <div style="display:flex;flex-direction:column;gap:12px">
-              <div class="breakdown-row" style="margin-bottom:0">
-                <span style="color:#d946ef;font-weight:600">⭐ VIP Sold</span>
-                <span style="font-weight:600;margin-left:auto">{{ stats.vip_sold }}</span>
-              </div>
-              <div class="breakdown-row" style="margin-bottom:0">
-                <span style="color:var(--text-muted)">⭐ VIP Remaining</span>
-                <span style="font-weight:600;margin-left:auto">{{ stats.vip_remaining >= 0 ? stats.vip_remaining : 'N/A' }}</span>
-              </div>
-              
-              <div style="height:1px;background:var(--border-glass);margin:8px 0"></div>
+              @if (stats.seat_map_enabled) {
+                <div class="breakdown-row" style="margin-bottom:0">
+                  <span style="color:#d946ef;font-weight:600">⭐ VIP Sold</span>
+                  <span style="font-weight:600;margin-left:auto">{{ stats.vip_sold }}</span>
+                </div>
+                <div class="breakdown-row" style="margin-bottom:0">
+                  <span style="color:var(--text-muted)">⭐ VIP Remaining</span>
+                  <span style="font-weight:600;margin-left:auto">{{ stats.vip_remaining >= 0 ? stats.vip_remaining : 'N/A' }}</span>
+                </div>
+                <div style="height:1px;background:var(--border-glass);margin:8px 0"></div>
+              }
               
               <div class="breakdown-row" style="margin-bottom:0">
                 <span style="color:var(--success);font-weight:600">🎫 Regular Sold</span>
@@ -87,10 +88,6 @@ import { StaffManagementComponent } from '../../staff/staff-management/staff-man
                 <span style="color:var(--text-secondary)">Platform Commission (5%)</span>
                 <span style="font-weight:600;color:var(--danger)">-&#8377;{{ stats.platform_commission }}</span>
               </div>
-              <div style="display:flex;justify-content:space-between">
-                <span style="color:var(--text-secondary)">Gateway Charges (2%)</span>
-                <span style="font-weight:600;color:var(--danger)">-&#8377;{{ stats.gateway_charges }}</span>
-              </div>
               
               <div style="display:flex;justify-content:space-between;padding:12px 0;border-top:1px dashed var(--border-glass);border-bottom:1px dashed var(--border-glass)">
                 <span style="font-weight:600;color:var(--text-primary)">Net Earnings</span>
@@ -107,12 +104,14 @@ import { StaffManagementComponent } from '../../staff/staff-management/staff-man
                 <span style="font-weight:600;font-size:0.85rem;color:var(--text-muted)">&#8377;{{ stats.potential_revenue }}</span>
               </div>
               
-              <div style="display:flex;justify-content:space-between;margin-top:8px">
-                <span style="color:var(--text-secondary);font-size:0.85rem">VIP Revenue</span>
-                <span style="font-weight:600;font-size:0.85rem;color:var(--info)">&#8377;{{ stats.vip_revenue }}</span>
-              </div>
-              <div style="display:flex;justify-content:space-between">
-                <span style="color:var(--text-secondary);font-size:0.85rem">Regular Revenue</span>
+              @if (stats.seat_map_enabled) {
+                <div style="display:flex;justify-content:space-between;margin-top:8px">
+                  <span style="color:var(--text-secondary);font-size:0.85rem">VIP Revenue</span>
+                  <span style="font-weight:600;font-size:0.85rem;color:var(--info)">&#8377;{{ stats.vip_revenue }}</span>
+                </div>
+              }
+              <div style="display:flex;justify-content:space-between" [style.margin-top]="stats.seat_map_enabled ? '0' : '8px'">
+                <span style="color:var(--text-secondary);font-size:0.85rem">{{ stats.seat_map_enabled ? 'Regular Revenue' : 'Total Revenue' }}</span>
                 <span style="font-weight:600;font-size:0.85rem;color:var(--info)">&#8377;{{ stats.regular_revenue }}</span>
               </div>
             </div>

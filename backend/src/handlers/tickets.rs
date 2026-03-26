@@ -12,7 +12,10 @@ use crate::error::AppError;
 use crate::models::event::Event;
 use crate::models::order::Order;
 use crate::models::seat::EventSeat;
-use crate::models::ticket::{CancellationPreview, CancellationResult, PurchaseRequest, Ticket, TicketWithQr};
+use crate::models::ticket::{
+    CancellationPreview, CancellationResult, HoldRequest, HoldResponse, PurchaseRequest, Ticket,
+    TicketWithQr,
+};
 use crate::utils::jwt::Claims;
 use crate::utils::qr;
 use crate::AppState;
@@ -174,10 +177,41 @@ pub async fn purchase_tickets(
         return Err(AppError::BadRequest("Quantity must be between 1 and 10".to_string()));
     }
 
-    // Check availability
-    let remaining = event.max_tickets - event.tickets_sold;
-    if quantity > remaining {
-        return Err(AppError::BadRequest(format!("Only {} tickets remaining", remaining)));
+    let mut tx = state.db.begin().await?;
+
+    // Check if user has an active hold
+    let hold_quantity: Option<i32> = sqlx::query_scalar(
+        "SELECT quantity FROM ticket_holds WHERE event_id = $1 AND user_id = $2 AND expires_at > NOW()"
+    )
+    .bind(input.event_id)
+    .bind(claims.sub)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    if let Some(held) = hold_quantity {
+        if held != quantity {
+            return Err(AppError::BadRequest(format!(
+                "You have {} tickets on hold, but requested {}. Please update your selection.",
+                held, quantity
+            )));
+        }
+    } else {
+        // No hold: Check overall availability including OTHERS' holds
+        let held_by_others: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(quantity), 0) FROM ticket_holds WHERE event_id = $1 AND expires_at > NOW() AND user_id != $2"
+        )
+        .bind(input.event_id)
+        .bind(claims.sub)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let available = event.max_tickets - event.tickets_sold - held_by_others as i32;
+        if quantity > available {
+            return Err(AppError::BadRequest(format!(
+                "Only {} tickets are currently available (others might be in checkout).",
+                if available < 0 { 0 } else { available }
+            )));
+        }
     }
 
     // Fraud check
@@ -186,7 +220,7 @@ pub async fn purchase_tickets(
     )
     .bind(input.event_id)
     .bind(claims.sub)
-    .fetch_one(&state.db)
+    .fetch_one(&mut *tx)
     .await?;
 
     if existing_count + quantity as i64 > 10 {
@@ -203,7 +237,7 @@ pub async fn purchase_tickets(
     };
 
     let total = unit_price * rust_decimal::Decimal::from(quantity);
-    let mut tx = state.db.begin().await?;
+    // (tx already started)
 
     let order = sqlx::query_as::<_, Order>(
         "INSERT INTO orders (user_id, event_id, total_amount, quantity, ticket_type) VALUES ($1, $2, $3, $4, $5) RETURNING *"
@@ -243,9 +277,101 @@ pub async fn purchase_tickets(
         .execute(&mut *tx)
         .await?;
 
+    // Consume hold if any
+    sqlx::query("DELETE FROM ticket_holds WHERE event_id = $1 AND user_id = $2")
+        .bind(input.event_id)
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await?;
+
     tx.commit().await?;
 
     Ok(Json(tickets))
+}
+
+/// POST /api/events/:id/hold — hold quantity of standard tickets for 10 minutes
+pub async fn hold_tickets(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Path(event_id): Path<Uuid>,
+    Json(input): Json<HoldRequest>,
+) -> Result<Json<HoldResponse>, AppError> {
+    if input.quantity <= 0 || input.quantity > 10 {
+        return Err(AppError::BadRequest("Hold quantity must be between 1 and 10".to_string()));
+    }
+
+    let mut tx = state.db.begin().await?;
+
+    // Fetch event and lock for check
+    let event = sqlx::query_as::<_, Event>("SELECT * FROM events WHERE id = $1 FOR UPDATE")
+        .bind(event_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Event not found".to_string()))?;
+
+    if event.seat_map_enabled {
+        return Err(AppError::BadRequest("Use seat-lock API for seat-map events".to_string()));
+    }
+
+    // Calculate total held excluding current user's existing holds for THIS event
+    let held_by_others: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(quantity), 0) FROM ticket_holds WHERE event_id = $1 AND expires_at > NOW() AND user_id != $2"
+    )
+    .bind(event_id)
+    .bind(claims.sub)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    let available = event.max_tickets - event.tickets_sold - held_by_others as i32;
+
+    if available < input.quantity {
+        return Err(AppError::Conflict(format!(
+            "Only {} tickets are currently available (others are held by someone else).",
+            if available < 0 { 0 } else { available }
+        )));
+    }
+
+    // Clean up current user's old holds for this event
+    sqlx::query("DELETE FROM ticket_holds WHERE event_id = $1 AND user_id = $2")
+        .bind(event_id)
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await?;
+
+    let expires_at = Utc::now() + chrono::Duration::minutes(10);
+
+    let hold_id = Uuid::new_v4();
+    sqlx::query("INSERT INTO ticket_holds (id, event_id, user_id, quantity, expires_at) VALUES ($1, $2, $3, $4, $5)")
+        .bind(hold_id)
+        .bind(event_id)
+        .bind(claims.sub)
+        .bind(input.quantity)
+        .bind(expires_at)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+
+    Ok(Json(HoldResponse {
+        hold_id,
+        quantity: input.quantity,
+        expires_at,
+    }))
+}
+
+/// DELETE /api/events/:id/hold/:hold_id — release a hold
+pub async fn release_hold(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Path((_event_id, hold_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let result = sqlx::query("DELETE FROM ticket_holds WHERE id = $1 AND user_id = $2")
+        .bind(hold_id)
+        .bind(claims.sub)
+        .execute(&state.db)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "released": result.rows_affected() > 0 })))
 }
 
 /// GET /api/tickets/my — list user's tickets
@@ -258,7 +384,7 @@ pub async fn my_tickets(
         SELECT 
             t.id, t.order_id, t.event_id, t.seat_id, t.user_id, t.qr_code_data, t.ticket_type,
             CASE WHEN t.status IN ('active', 'valid') AND e.event_end_time < NOW() THEN 'expired' ELSE t.status END as status,
-            t.refund_status, t.scanned_at, t.created_at,
+            t.refund_status, t.scanned_at, t.created_at, t.cancellation_type,
             e.title as event_title,
             e.event_date as event_date,
             e.refund_policy as event_refund_policy,
@@ -267,9 +393,15 @@ pub async fn my_tickets(
             e.status as event_status,
             e.image_urls[1] as event_image,
             e.location as event_location,
-            e.google_maps_url
+            e.google_maps_url,
+            CASE 
+                WHEN s.row_label IS NOT NULL AND s.seat_number IS NOT NULL 
+                THEN 'Row ' || s.row_label || ' - Seat ' || s.seat_number::text 
+                ELSE NULL 
+            END as seat_label
         FROM tickets t
         JOIN events e ON t.event_id = e.id
+        LEFT JOIN event_seats s ON t.seat_id = s.id
         WHERE t.user_id = $1 
         ORDER BY t.created_at DESC
         "#
@@ -304,6 +436,7 @@ pub async fn get_ticket_qr(
         refund_status: String,
         scanned_at: Option<chrono::DateTime<chrono::Utc>>,
         created_at: chrono::DateTime<chrono::Utc>,
+        cancellation_type: String,
         // Event fields
         event_title: String,
         event_images: Option<Vec<String>>,
@@ -321,7 +454,7 @@ pub async fn get_ticket_qr(
         SELECT 
             t.id, t.order_id, t.event_id, t.seat_id, t.user_id, t.qr_code_data, t.ticket_type,
             CASE WHEN t.status IN ('active', 'valid') AND e.event_end_time < NOW() THEN 'expired' ELSE t.status END as status,
-            t.refund_status, t.scanned_at, t.created_at,
+            t.refund_status, t.scanned_at, t.created_at, t.cancellation_type,
             e.title as event_title,
             e.image_urls as event_images,
             e.event_date as event_date,
@@ -366,6 +499,7 @@ pub async fn get_ticket_qr(
         refund_status: data.refund_status,
         scanned_at: data.scanned_at,
         created_at: data.created_at,
+        cancellation_type: data.cancellation_type,
         event_title: Some(data.event_title.clone()),
         event_date: Some(data.event_date),
         event_refund_policy: None,
@@ -375,6 +509,7 @@ pub async fn get_ticket_qr(
         event_image: first_image.clone(),
         event_location: Some(data.event_location.clone()),
         google_maps_url: data.google_maps_url.clone(),
+        seat_label: seat_label.clone(),
     };
     Ok(Json(TicketWithQr {
         ticket,
@@ -530,7 +665,7 @@ pub async fn cancel_ticket(
 
     let (refundable, refund_amount, initial_refund_status, reason) = compute_cancellation_decision(&ctx);
 
-    sqlx::query("UPDATE tickets SET status = 'cancelled', refund_status = $1 WHERE id = $2")
+    sqlx::query("UPDATE tickets SET status = 'cancelled', refund_status = $1, cancellation_type = 'user' WHERE id = $2")
         .bind(&initial_refund_status)
         .bind(id)
         .execute(&mut *tx)

@@ -116,6 +116,7 @@ export interface EventCancellationRecord {
 export interface EventStats {
     event_id: string;
     title: string;
+    seat_map_enabled: boolean;
     tickets_sold: number;
     max_tickets: number;
     remaining: number;

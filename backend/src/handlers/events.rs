@@ -164,6 +164,7 @@ pub async fn get_event_stats(
     Ok(Json(EventStats {
         event_id: event.id,
         title: event.title,
+        seat_map_enabled: event.seat_map_enabled,
         tickets_sold: event.tickets_sold,
         max_tickets: event.max_tickets,
         remaining,
@@ -171,8 +172,8 @@ pub async fn get_event_stats(
         occupancy_pct,
         gross_sales,
         platform_commission,
-        gateway_charges,
-        net_earnings,
+        gateway_charges: rust_decimal::Decimal::ZERO,
+        net_earnings: gross_sales - platform_commission,
         avg_per_ticket,
         potential_revenue,
         vip_revenue,
@@ -223,8 +224,8 @@ pub async fn create_event(
     if seat_map_enabled {
         let rows = input.seat_rows.unwrap_or(0);
         let cols = input.seat_columns.unwrap_or(0);
-        if rows <= 0 || rows > 26 {
-            return Err(AppError::BadRequest("seat_rows must be between 1 and 26".to_string()));
+        if rows <= 0 || rows > 500 {
+            return Err(AppError::BadRequest("seat_rows must be between 1 and 500".to_string()));
         }
         if cols <= 0 || cols > 100 {
             return Err(AppError::BadRequest("seat_columns must be between 1 and 100".to_string()));
@@ -464,14 +465,20 @@ pub async fn cancel_event(
     struct TicketRefundInfo {
         ticket_id: Uuid,
         user_id: Uuid,
-        total_amount: rust_decimal::Decimal,
+        refund_amount: rust_decimal::Decimal,
         razorpay_payment_id: Option<String>,
     }
 
     let tickets_to_refund = sqlx::query_as::<_, TicketRefundInfo>(
-        r#"SELECT t.id as ticket_id, t.user_id, o.total_amount, o.razorpay_payment_id
+        r#"SELECT 
+               t.id as ticket_id, t.user_id, o.razorpay_payment_id,
+               CASE 
+                   WHEN t.ticket_type = 'vip' THEN COALESCE(e.vip_price, e.ticket_price)
+                   ELSE e.ticket_price 
+               END as refund_amount
            FROM tickets t
            JOIN orders o ON o.id = t.order_id
+           JOIN events e ON e.id = t.event_id
            WHERE t.event_id = $1 AND t.status IN ('active', 'valid')"#
     )
     .bind(id)
@@ -491,11 +498,11 @@ pub async fn cancel_event(
         .bind(t.user_id)
         .bind(id)
         .bind(&t.razorpay_payment_id)
-        .bind(t.total_amount)
+        .bind(t.refund_amount)
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query("UPDATE tickets SET status = 'cancelled', refund_status = 'pending' WHERE id = $1")
+        sqlx::query("UPDATE tickets SET status = 'cancelled', refund_status = 'pending', cancellation_type = 'organizer' WHERE id = $1")
             .bind(t.ticket_id)
             .execute(&mut *tx)
             .await?;

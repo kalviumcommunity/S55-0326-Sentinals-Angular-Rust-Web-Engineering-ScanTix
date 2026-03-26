@@ -25,6 +25,8 @@ export interface Ticket {
     event_image?: string;
     event_location?: string;
     google_maps_url?: string;
+    seat_label?: string | null;
+    cancellation_type?: 'user' | 'organizer' | 'none';
 }
 
 export interface CancellationPreview {
@@ -102,4 +104,18 @@ export class TicketService {
     syncRefundStatus(id: string): Observable<CancellationResult> {
         return this.http.get<CancellationResult>(`${environment.apiUrl}/tickets/${id}/refund-status`);
     }
+
+    holdTickets(eventId: string, quantity: number): Observable<HoldResponse> {
+        return this.http.post<HoldResponse>(`${environment.apiUrl}/events/${eventId}/hold`, { quantity });
+    }
+
+    releaseHold(eventId: string, holdId: string): Observable<any> {
+        return this.http.delete(`${environment.apiUrl}/events/${eventId}/hold/${holdId}`);
+    }
+}
+
+export interface HoldResponse {
+    hold_id: string;
+    quantity: number;
+    expires_at: string;
 }

@@ -116,7 +116,7 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
                 <div class="detail-value">{{ event.max_tickets - event.tickets_sold }} of {{ event.max_tickets }}</div>
               </div>
             </div>
-            @if (event.vip_price) {
+            @if (event.seat_map_enabled && event.vip_price) {
               <div class="detail-item">
                 <span>⭐</span>
                 <div>
@@ -157,7 +157,7 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
             } @else {
               <p style="margin:0 0 8px;color:#86efac;font-weight:600">Refundable Event</p>
               <p style="margin:0;color:var(--text-secondary)">
-                If the attendee cancels their ticket, they will receive a refund excluding the convenience fee.
+                If the attendee cancels their ticket, they will receive a full refund.
               </p>
               <p style="margin:10px 0 0;color:var(--text-muted)">
                 Refunds are allowed only if the ticket is cancelled at least 24 hours before the event start time.
@@ -199,13 +199,9 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
                       <span>Subtotal ({{ selectedSeats.length }} seat{{ selectedSeats.length > 1 ? 's' : '' }})</span>
                       <span>&#8377;{{ getSubtotal() | number:'1.0-0' }}</span>
                     </div>
-                    <div class="fee-row" style="color:var(--text-muted);font-size:0.85rem">
-                      <span>Convenience Fee (2%)</span>
-                      <span>&#8377;{{ getConvenienceFee() | number:'1.2-2' }}</span>
-                    </div>
                     <div class="fee-row fee-total">
                       <span>Total</span>
-                      <strong style="color:var(--accent-primary);font-size:1.25rem">&#8377;{{ getTotalAmount() | number:'1.2-2' }}</strong>
+                      <strong style="color:var(--accent-primary);font-size:1.25rem">&#8377;{{ getSubtotal() | number:'1.2-2' }}</strong>
                     </div>
                     <button class="btn btn-primary" style="margin-top:12px;width:100%" (click)="proceedToPayment()" [disabled]="lockingSeats">
                       @if (lockingSeats) {
@@ -221,38 +217,49 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
 
               } @else {
                 <!-- STANDARD QUANTITY MODE -->
-                <h3 style="margin-bottom:16px">🎟️ Purchase Tickets</h3>
+                <h3 style="margin-bottom:8px">🎟️ Purchase Tickets</h3>
+                <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:20px">
+                  Select the number of tickets you'd like to purchase.
+                </p>
 
                 @if (purchaseSuccess) { <div class="alert alert-success">{{ purchaseSuccess }}</div> }
                 @if (purchaseError) { <div class="alert alert-danger">{{ purchaseError }}</div> }
 
-                <div style="display:flex;gap:12px;margin-bottom:16px">
-                  <div class="form-group" style="flex:1">
-                    <label>Quantity</label>
-                    <select class="form-control" [(ngModel)]="quantity">
-                      @for (n of [1,2,3,4,5,6,7,8,9,10]; track n) {
-                        <option [ngValue]="n">{{ n }} Ticket{{ n > 1 ? 's' : '' }}</option>
-                      }
-                    </select>
+                <div class="quantity-selector-container" style="margin-bottom:24px">
+                  <label style="display:block;margin-bottom:12px;color:var(--text-secondary);font-size:0.9rem">Select Quantity</label>
+                  <div class="quantity-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
+                    @for (n of getAvailableOptions(); track n) {
+                      <button 
+                        class="qty-btn" 
+                        [class.active]="quantity === n"
+                        (click)="quantity = n"
+                        [disabled]="lockingSeats">
+                        {{ n }}
+                      </button>
+                    }
+                    @if (getAvailableOptions().length === 0) {
+                      <p style="grid-column: span 5; color: var(--danger); text-align: center; padding: 10px;">Sold Out</p>
+                    }
                   </div>
-
                 </div>
 
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:12px;background:rgba(234,179,8,0.1);border-radius:8px">
+                <div class="purchase-summary" style="margin-bottom:20px">
+                  <div class="fee-row">
                     <span style="color:var(--text-secondary)">Total Amount</span>
-                    <span style="font-size:1.4rem;font-weight:700;color:var(--accent-primary)">
+                    <strong style="font-size:1.4rem;font-weight:700;color:var(--accent-primary)">
                       {{ calculateTotal() | currency:'INR' }}
-                    </span>
+                    </strong>
                   </div>
+                </div>
                   
-            @if (!auth.isOrganizer) {
-                    <button class="btn btn-primary" (click)="proceedToPaymentStandard()" [disabled]="lockingSeats">
-                      @if (lockingSeats) {
-                        <span class="spinner" style="width:18px;height:18px;border-width:2px"></span>
-                        Processing...
-                      } @else { 💳 Proceed to Payment }
-                    </button>
-                  }
+                @if (!auth.isOrganizer && getAvailableOptions().length > 0) {
+                  <button class="btn btn-primary" style="width:100%" (click)="proceedToPaymentStandard()" [disabled]="lockingSeats">
+                    @if (lockingSeats) {
+                      <span class="spinner" style="width:18px;height:18px;border-width:2px"></span>
+                      Holding tickets...
+                    } @else { 💳 Proceed to Payment }
+                  </button>
+                }
                 }
               </div>
             } @else if (!auth.isAuthenticated) {
@@ -357,7 +364,7 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
   styles: [`
     .price-tag { text-align:right; padding:16px 24px; background:var(--bg-card); border-radius:var(--radius-md); border:1px solid var(--border-glass); }
     .price-label { font-size:.75rem; color:var(--text-muted); text-transform:uppercase; }
-    .price-value { font-size:1.8rem; font-weight:700; font-family:'Outfit',sans-serif; background:var(--accent-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .price-value { font-size:1.8rem; font-weight:700; font-family:'Poppins',sans-serif; background:var(--accent-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
     .detail-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:20px; }
     .detail-item { display:flex; gap:12px; align-items:center; padding:16px; background:var(--bg-card); border-radius:var(--radius-md); }
     .detail-label { font-size:.8rem; color:var(--text-muted); margin-bottom:4px; }
@@ -381,7 +388,32 @@ import { PaymentModalComponent, PaymentDetails } from '../../../shared/payment-m
       padding-top: 10px; margin-top: 4px;
       font-size: 1rem; color: var(--text-primary);
     }
-  `]
+  .qty-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-primary);
+    padding: 12px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .qty-btn:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    transform: translateY(-2px);
+  }
+  .qty-btn.active {
+    background: var(--accent-gradient);
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(168, 85, 247, 0.3);
+  }
+  .qty-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+`]
 })
 export class EventDetailComponent implements OnInit, OnDestroy {
   event: ScanEvent | null = null;
@@ -400,6 +432,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   showPaymentModal = false;
   paymentDetails: PaymentDetails | null = null;
   lockedSeatIds: string[] = [];
+  currentHoldId: string | null = null;
   lockedUntil = '';
   purchasing = false;
   purchaseSuccess = '';
@@ -433,8 +466,21 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.eventService.getEvent(id).subscribe({
       next: (event) => {
+        // Ensure numeric types to prevent NaN in template
+        event.max_tickets = Number(event.max_tickets) || 0;
+        event.tickets_sold = Number(event.tickets_sold) || 0;
+        
         this.event = event;
         this.loading = false;
+        
+        // Adjust quantity if current selection exceeds availability
+        const max = this.getAvailableOptions();
+        if (max.length > 0 && this.quantity > max[max.length - 1]) {
+          this.quantity = max[max.length - 1];
+        } else if (max.length === 0) {
+          this.quantity = 0;
+        }
+
         this.cdr.detectChanges();
       },
       error: () => {
@@ -462,7 +508,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   }
 
   getConvenienceFee(): number {
-    return this.getSubtotal() * 0.02;
+    return 0;
   }
 
   getTotalAmount(): number {
@@ -484,8 +530,8 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         this.lockedUntil = resp.locked_until;
         this.paymentDetails = {
           baseAmount: this.getSubtotal(),
-          convenienceFee: this.getConvenienceFee(),
-          totalAmount: this.getTotalAmount(),
+          convenienceFee: 0,
+          totalAmount: this.getSubtotal(),
           seats: this.selectedSeats,
           event: this.event!,
           lockedUntil: resp.locked_until
@@ -511,11 +557,16 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.purchaseSuccess = `🎉 Payment successful! Redirecting to your tickets...`;
     
     if (this.event) {
-      this.event.tickets_sold += this.selectedSeats.length || this.quantity;
+      if (this.event.seat_map_enabled) {
+        this.event.tickets_sold += this.selectedSeats.length;
+      } else {
+        this.event.tickets_sold += this.quantity;
+      }
     }
     
     this.selectedSeats = [];
     this.lockedSeatIds = [];
+    this.currentHoldId = null;
     this.cdr.detectChanges();
 
     setTimeout(() => {
@@ -531,8 +582,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.seatService.unlockSeats(this.event.id, this.lockedSeatIds).subscribe();
+    if (this.event.seat_map_enabled && this.lockedSeatIds.length > 0) {
+      this.seatService.unlockSeats(this.event.id, this.lockedSeatIds).subscribe();
+    } else if (!this.event.seat_map_enabled && this.currentHoldId) {
+      this.ticketService.releaseHold(this.event.id, this.currentHoldId).subscribe();
+    }
+
     this.lockedSeatIds = [];
+    this.currentHoldId = null;
     this.showPaymentModal = false;
     this.paymentDetails = null;
     this.selectedSeats = [];
@@ -542,22 +599,53 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   // ── STANDARD (NO SEAT-MAP) FLOW ────────────────────────────────────────────
 
   proceedToPaymentStandard() {
-    if (!this.event) return;
-    const subtotal = this.quantity * Number(this.event.ticket_price);
-    const fee = subtotal * 0.02;
-    const total = subtotal + fee;
-
-    this.paymentDetails = {
-      baseAmount: subtotal,
-      convenienceFee: fee,
-      totalAmount: total,
-      seats: [],
-      quantity: this.quantity,
-      event: this.event,
-      lockedUntil: new Date(Date.now() + 8 * 60 * 1000).toISOString()
-    };
-    this.showPaymentModal = true;
+    if (!this.event || this.quantity <= 0) return;
+    this.lockingSeats = true;
+    this.purchaseError = '';
     this.cdr.detectChanges();
+
+    this.ticketService.holdTickets(this.event.id, this.quantity).subscribe({
+      next: (resp) => {
+        this.lockingSeats = false;
+        this.currentHoldId = resp.hold_id;
+        
+        const subtotal = this.quantity * Number(this.event!.ticket_price);
+        const total = subtotal;
+
+        this.paymentDetails = {
+          baseAmount: subtotal,
+          convenienceFee: 0,
+          totalAmount: total,
+          seats: [],
+          quantity: this.quantity,
+          event: this.event!,
+          lockedUntil: resp.expires_at
+        };
+        this.showPaymentModal = true;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.lockingSeats = false;
+        const errMsg: string = err.error?.message || '';
+        if (err.status === 409) {
+          this.heldSeatsMessage = errMsg;
+        } else {
+          this.purchaseError = errMsg || 'Could not hold tickets. They might have been taken by someone else.';
+        }
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  getAvailableOptions(): number[] {
+    if (!this.event) return [];
+    const available = this.event.max_tickets - this.event.tickets_sold;
+    const limit = Math.min(10, available);
+    const options = [];
+    for (let i = 1; i <= limit; i++) {
+      options.push(i);
+    }
+    return options;
   }
 
   calculateTotal(): number {

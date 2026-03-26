@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { organizerGuard } from './core/guards/organizer.guard';
 
 export const routes: Routes = [
     {
@@ -22,12 +23,12 @@ export const routes: Routes = [
     {
         path: 'events/create',
         loadComponent: () => import('./features/events/event-create/event-create.component').then(m => m.EventCreateComponent),
-        canActivate: [authGuard]
+        canActivate: [authGuard, organizerGuard]
     },
     {
         path: 'events/:id/edit',
         loadComponent: () => import('./features/events/event-edit/event-edit.component').then(m => m.EventEditComponent),
-        canActivate: [authGuard]
+        canActivate: [authGuard, organizerGuard]
     },
     {
         path: 'events/:id',
@@ -36,12 +37,12 @@ export const routes: Routes = [
     {
         path: 'my-events',
         loadComponent: () => import('./features/events/my-events/my-events.component').then(m => m.MyEventsComponent),
-        canActivate: [authGuard]
+        canActivate: [authGuard, organizerGuard]
     },
     {
         path: 'dashboard',
         loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
-        canActivate: [authGuard]
+        canActivate: [authGuard, organizerGuard]
     },
     {
         path: 'organizer/bank-details',

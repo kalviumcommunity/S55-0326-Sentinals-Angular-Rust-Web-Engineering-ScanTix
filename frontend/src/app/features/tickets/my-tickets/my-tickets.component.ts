@@ -89,7 +89,7 @@ import { environment } from '../../../../environments/environment';
                     <p class="event-meta">
                       {{ ticket.event_date || ticket.created_at | date:'dd MMM' }} | {{ ticket.event_date || ticket.created_at | date:'hh:mm a' }}
                     </p>
-                    <p class="ticket-qty">1 ticket</p>
+                    <p class="ticket-qty">1 ticket {{ ticket.seat_label ? ' | ' + ticket.seat_label : '' }}</p>
                   </div>
                   
                   @if (ticket.event_image) {
@@ -124,13 +124,17 @@ import { environment } from '../../../../environments/environment';
 
                 <!-- Footer: Status and Action -->
                 <div class="card-footer">
-                  <div class="status-badge" [class.cancelled]="ticket.status === 'cancelled'" [class.used]="ticket.status === 'used'" [class.active]="ticket.status === 'active' || ticket.status === 'valid'">
-                    @if (ticket.status === 'cancelled' && ticket.event_status === 'cancelled') {
-                      Organizer Cancelled
-                    } @else {
-                      {{ (ticket.status === 'valid' ? 'Active' : ticket.status | titlecase) }}
-                    }
-                  </div>
+                    <div class="status-badge" [class.cancelled]="ticket.status === 'cancelled'" [class.used]="ticket.status === 'used'" [class.active]="ticket.status === 'active' || ticket.status === 'valid'">
+                      @if (ticket.status === 'cancelled') {
+                        @if (ticket.cancellation_type === 'organizer' || (ticket.event_status === 'cancelled' && ticket.cancellation_type !== 'user')) {
+                          Organizer Cancelled
+                        } @else {
+                          Cancelled
+                        }
+                      } @else {
+                        {{ (ticket.status === 'valid' ? 'Active' : ticket.status | titlecase) }}
+                      }
+                    </div>
 
                   <div class="view-details">
                     <span>View details</span>
@@ -345,9 +349,9 @@ import { environment } from '../../../../environments/environment';
       box-shadow: 0 12px 40px rgba(0,0,0,0.6);
     }
     .stat-card.stat-total:hover {
-      border-color: rgba(234, 179, 8, 0.4);
-      background: rgba(234, 179, 8, 0.05);
-      box-shadow: 0 12px 40px rgba(234, 179, 8, 0.15);
+      border-color: rgba(168, 85, 247, 0.5);
+      background: rgba(168, 85, 247, 0.05);
+      box-shadow: 0 20px 50px rgba(168, 85, 247, 0.25);
     }
     .stat-card.stat-active:hover {
       border-color: rgba(16, 185, 129, 0.4);
@@ -376,8 +380,9 @@ import { environment } from '../../../../environments/environment';
     }
     .ticket-premium-card:hover {
       background: #222;
-      transform: translateY(-4px);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      transform: translateY(-8px);
+      box-shadow: 0 20px 50px rgba(168, 85, 247, 0.25);
+      border-color: rgba(168, 85, 247, 0.3);
     }
 
     .ticket-premium-card.card-active:hover {
