@@ -89,26 +89,37 @@ import { ShinyTextComponent } from '../../../shared/components/shiny-text/shiny-
           }
         }
 
-        <div class="glass-card" style="padding:40px;margin-top:16px">
-          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:24px;flex-wrap:wrap;gap:16px">
-            <div>
-              <h1 style="font-size:2rem;margin-bottom:8px">{{ event.title }}</h1>
-              <span class="badge" [class]="getStatusClass(event.status)">{{ event.status }}</span>
-              @if (+event.ticket_price > 0) {
-                <span class="badge" [class]="event.refund_policy === 'REFUNDABLE' ? 'badge-success' : 'badge-danger'" style="margin-left:8px">
-                  {{ event.refund_policy === 'REFUNDABLE' ? 'Refundable Event' : 'Non-Refundable Event' }}
-                </span>
-              } @else {
-                <span class="badge" style="margin-left:8px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
-                  <app-shiny-text text="FREE Event" color="#10b981" shineColor="#6ee7b7" [speed]="2.5" [spread]="1.2"></app-shiny-text>
-                </span>
-              }
-              @if (event.seat_map_enabled) {
-                <span class="badge badge-info" style="margin-left:8px">🪑 Seat Selection</span>
-              }
+        <div class="glass-card event-detail-card" style="padding:40px;margin-top:16px">
+          <!-- Event header: title + badges + price -->
+          <div class="event-header-row">
+            <div class="event-title-badges">
+              <h1 class="event-title">{{ event.title }}</h1>
+
+              <div class="event-badges">
+                <!-- Status badge: only visible to the organizer of this event -->
+                @if (auth.currentUser?.id === event.organizer_id) {
+                  <span class="badge" [class]="getStatusClass(event.status)">{{ event.status }}</span>
+                }
+
+                @if (+event.ticket_price > 0) {
+                  <span class="badge" [class]="event.refund_policy === 'REFUNDABLE' ? 'badge-success' : 'badge-danger'">
+                    {{ event.refund_policy === 'REFUNDABLE' ? 'Refundable Event' : 'Non-Refundable Event' }}
+                  </span>
+                } @else {
+                  <span class="badge badge-free-event">
+                    <app-shiny-text text="FREE Event" color="#10b981" shineColor="#6ee7b7" [speed]="2.5" [spread]="1.2"></app-shiny-text>
+                  </span>
+                }
+
+                @if (event.seat_map_enabled) {
+                  <span class="badge badge-info">🪑 Seat Selection</span>
+                }
+              </div>
             </div>
+
+            <!-- Price / FREE display -->
             @if (+event.ticket_price === 0) {
-              <div style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:16px 32px;text-align:center;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(16,185,129,0.1)">
+              <div class="price-free-box">
                 <app-shiny-text
                   text="FREE"
                   color="#077533ff"
@@ -466,9 +477,48 @@ import { ShinyTextComponent } from '../../../shared/components/shiny-text/shiny-
   `,
 
   styles: [`
+    .event-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .event-title-badges {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .event-title {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+    .event-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .badge-free-event {
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .price-free-box {
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 12px;
+      padding: 16px 32px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.1);
+    }
     .price-tag { text-align:right; padding:16px 24px; background:var(--bg-card); border-radius:var(--radius-md); border:1px solid var(--border-glass); }
-    .price-label { font-size:.75rem; color:var(--text-muted); text-transform:uppercase; }
-    .price-value { font-size:1.8rem; font-weight:700; font-family:'Poppins',sans-serif; background:var(--accent-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .price-label { font-size:.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom: 4px;}
+    .price-value { font-size:1.8rem; font-weight:700; font-family:'Poppins',sans-serif; background:var(--accent-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; line-height: 1.1;}
     .event-description {
       margin-top: 16px;
       margin-bottom: 32px;
@@ -882,8 +932,25 @@ import { ShinyTextComponent } from '../../../shared/components/shiny-text/shiny-
       .detail-label { font-size: 0.78rem; margin-left: 28px; }
       .detail-value { font-size: 0.9rem; }
       .detail-value-highlight { font-size: 0.85rem; }
-      .price-tag { padding: 12px 16px; }
-      .price-value { font-size: 1.4rem !important; }
+      
+      /* Header & Badges Mobile stacking */
+      .event-header-row { flex-direction: column; gap: 16px; }
+      .event-badges { gap: 6px; }
+      .badge { font-size: 0.7rem; padding: 4px 10px; }
+      
+      /* Full width price boxes on mobile */
+      .price-free-box, .price-tag {
+        width: 100%;
+        text-align: center;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px !important;
+      }
+      .price-tag { display: flex; }
+      .price-label { margin-bottom: 0; font-size: 0.85rem; }
+      .price-value { font-size: 1.6rem !important; }
+
       .quantity-grid { grid-template-columns: repeat(3, 1fr) !important; }
       [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
       .event-description { padding: 16px; }
