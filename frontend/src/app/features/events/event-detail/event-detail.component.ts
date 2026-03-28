@@ -27,21 +27,61 @@ import { ShinyTextComponent } from '../../../shared/components/shiny-text/shiny-
         </a>
 
         @if (event.image_urls && event.image_urls.length > 0) {
-          <!-- Carousel or gallery view for multiple images -->
-          <div style="margin-top:8px; display:flex; gap:16px; overflow-x:auto; padding-bottom:16px; scroll-snap-type: x mandatory">
-            @for (img of event.image_urls; track img; let i = $index) {
-              <div class="event-banner animate-fadeIn" style="min-width:100%; height:450px; position:relative; border-radius:16px; border:1px solid rgba(255,255,255,0.05); overflow:hidden; scroll-snap-align: center;">
-                 <!-- Blurred backdrop -->
-                 <div [style]="getSafeStyle(img)" style="position:absolute; inset:-40px; background-size:cover; background-position:center; filter:blur(25px) brightness(0.6); opacity:0.8; z-index:0; transform: scale(1.1);"></div>
-                 <!-- Crisp foreground -->
-                 <div [style]="getSafeStyle(img)" style="position:absolute; inset:0; background-size:contain; background-repeat:no-repeat; background-position:center; z-index:1; box-shadow: 0 0 50px rgba(0,0,0,0.5);"></div>
+          <!-- ── 3D Animated Image Carousel ───────────────────────────────── -->
+          @if (event.image_urls.length === 1) {
+            <!-- Single image: static display, no carousel -->
+            <div class="static-banner animate-fadeIn">
+              <div [style]="getSafeStyle(event.image_urls[0])" class="static-banner-bg"></div>
+              <div [style]="getSafeStyle(event.image_urls[0])" class="static-banner-fg"></div>
+            </div>
+          } @else {
+            <!-- Multi-image: 3D perspective carousel -->
+            <div class="carousel-wrapper">
+              <!-- Soft ambient gradient background -->
+              <div class="carousel-bg-gradient"></div>
+
+              <!--
+                Slot-based carousel: 3 persistent DOM elements, each owns its
+                own image index + CSS position class. On rotation we reclassify
+                two slots (CSS transition handles the glide) and freeze/fade
+                the wrapping slot so it pops in cleanly without sliding across.
+              -->
+              <div class="carousel-stage">
+                @for (slot of carouselSlots; track slot.id) {
+                  <div
+                    [class]="getSlotClass(slot)"
+                    [style.background-image]="'url(' + getImageUrl(event!.image_urls[slot.imgIndex]) + ')'"
+                    (mouseenter)="onSlotHover(slot)"
+                  >
+                    <!-- Left-arrow cue -->
+                    @if (slot.position === 'left') {
+                      <div class="carousel-arrow carousel-arrow-left">&#8249;</div>
+                    }
+                    <!-- Right-arrow cue -->
+                    @if (slot.position === 'right') {
+                      <div class="carousel-arrow carousel-arrow-right">&#8250;</div>
+                    }
+                    <!-- Dot indicators (only on center slot) -->
+                    @if (slot.position === 'center') {
+                      <div class="carousel-dots">
+                        @for (img of event!.image_urls; track img; let i = $index) {
+                          <span
+                            class="carousel-dot"
+                            [class.carousel-dot-active]="i === activeIndex"
+                            (click)="goToIndex(i)"
+                          ></span>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
               </div>
-            }
-          </div>
-          @if (event.image_urls.length > 1) {
-            <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-top:-8px; margin-bottom:16px">
-              ← Swipe to see more ({{ event.image_urls.length }} photos) →
-            </p>
+
+              <!-- Caption: photo count -->
+              <p class="carousel-caption">
+                {{ activeIndex + 1 }} / {{ event.image_urls.length }} Photos
+              </p>
+            </div>
           }
         }
 
@@ -83,89 +123,99 @@ import { ShinyTextComponent } from '../../../shared/components/shiny-text/shiny-
           </div>
 
           @if (event.description) {
-            <p style="color:var(--text-secondary);line-height:1.7;margin-bottom:24px">
-              {{ event.description }}
-            </p>
+            <div class="event-description">
+              <h3 class="section-title">About this Event</h3>
+              <p>{{ event.description }}</p>
+            </div>
           }
 
           <div class="detail-grid">
             <div class="detail-item">
-              <span>📅</span>
-              <div>
-                <div class="detail-label">Date & Time</div>
+              <div class="detail-label">Date & Time</div>
+              <div class="detail-content">
+                <span class="detail-icon">📅</span>
                 <div class="detail-value">
-                  {{ event.event_date | date:'EEEE, MMMM d, y' }}<br>
-                  <span style="color:var(--accent-primary)">{{ event.event_date | date:'h:mm a' }} IST</span>
+                  {{ event.event_date | date:'EEEE, MMMM d, y' }}
+                  <span class="detail-value-highlight">{{ event.event_date | date:'h:mm a' }} IST</span>
                 </div>
               </div>
             </div>
+            
             @if (event.location) {
               <div class="detail-item">
-                <span>📍</span>
-                <div>
-                  <div class="detail-label">Location</div>
+                <div class="detail-label">Location</div>
+                <div class="detail-content">
+                  <span class="detail-icon">📍</span>
                   <div class="detail-value">{{ event.location }}</div>
                 </div>
               </div>
             }
+            
             @if (event.gate_open_time) {
               <div class="detail-item">
-                <span>🚪</span>
-                <div>
-                  <div class="detail-label">Gate Opens</div>
+                <div class="detail-label">Gate Opens</div>
+                <div class="detail-content">
+                  <span class="detail-icon">🚪</span>
                   <div class="detail-value">
-                    {{ event.gate_open_time | date:'EEE, MMM d' }}<br>
-                    <span style="color:var(--accent-primary)">{{ event.gate_open_time | date:'h:mm a' }} IST</span>
+                    {{ event.gate_open_time | date:'EEE, MMM d' }}
+                    <span class="detail-value-highlight">{{ event.gate_open_time | date:'h:mm a' }} IST</span>
                   </div>
                 </div>
               </div>
             }
+            
             @if (event.event_end_time) {
               <div class="detail-item">
-                <span>🏁</span>
-                <div>
-                  <div class="detail-label">Event Ends</div>
+                <div class="detail-label">Event Ends</div>
+                <div class="detail-content">
+                  <span class="detail-icon">🏁</span>
                   <div class="detail-value">
-                    {{ event.event_end_time | date:'EEE, MMM d' }}<br>
-                    <span style="color:var(--accent-primary)">{{ event.event_end_time | date:'h:mm a' }} IST</span>
+                    {{ event.event_end_time | date:'EEE, MMM d' }}
+                    <span class="detail-value-highlight">{{ event.event_end_time | date:'h:mm a' }} IST</span>
                   </div>
                 </div>
               </div>
             }
+            
             <div class="detail-item">
-              <span>🎟️</span>
-              <div>
-                <div class="detail-label">Tickets Available</div>
+              <div class="detail-label">Tickets Available</div>
+              <div class="detail-content">
+                <span class="detail-icon">🎟️</span>
                 <div class="detail-value">{{ event.max_tickets - event.tickets_sold }} of {{ event.max_tickets }}</div>
               </div>
             </div>
+            
             @if (event.seat_map_enabled && event.vip_price) {
               <div class="detail-item">
-                <span>⭐</span>
-                <div>
-                  <div class="detail-label">VIP Price</div>
+                <div class="detail-label">VIP Price</div>
+                <div class="detail-content">
+                  <span class="detail-icon">⭐</span>
                   <div class="detail-value">&#8377;{{ event.vip_price }}</div>
                 </div>
               </div>
             }
+            
             @if (event.seat_map_enabled && event.seat_rows && event.seat_columns) {
               <div class="detail-item">
-                <span>🪑</span>
-                <div>
-                  <div class="detail-label">Seat Layout</div>
+                <div class="detail-label">Seat Layout</div>
+                <div class="detail-content">
+                  <span class="detail-icon">🪑</span>
                   <div class="detail-value">{{ event.seat_rows }} rows × {{ event.seat_columns }} seats</div>
                 </div>
               </div>
             }
+            
             @if (event.google_maps_url) {
               <div class="detail-item">
-                <span>🗺️</span>
-                <div>
-                  <div class="detail-label">Venue Map</div>
-                  <a [href]="event.google_maps_url" target="_blank" rel="noopener noreferrer"
-                     style="color:var(--accent-primary);font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
-                    View on Google Maps ↗
-                  </a>
+                <div class="detail-label">Venue Map</div>
+                <div class="detail-content">
+                  <span class="detail-icon">🗺️</span>
+                  <div class="detail-value">
+                    <a [href]="event.google_maps_url" target="_blank" rel="noopener noreferrer"
+                       style="color:#eab308;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+                      View on Google Maps ↗
+                    </a>
+                  </div>
                 </div>
               </div>
             }
@@ -415,10 +465,87 @@ import { ShinyTextComponent } from '../../../shared/components/shiny-text/shiny-
     .price-tag { text-align:right; padding:16px 24px; background:var(--bg-card); border-radius:var(--radius-md); border:1px solid var(--border-glass); }
     .price-label { font-size:.75rem; color:var(--text-muted); text-transform:uppercase; }
     .price-value { font-size:1.8rem; font-weight:700; font-family:'Poppins',sans-serif; background:var(--accent-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-    .detail-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:20px; }
-    .detail-item { display:flex; gap:12px; align-items:center; padding:16px; background:var(--bg-card); border-radius:var(--radius-md); }
-    .detail-label { font-size:.8rem; color:var(--text-muted); margin-bottom:4px; }
-    .detail-value { font-weight:600; }
+    .event-description {
+      margin-top: 16px;
+      margin-bottom: 32px;
+      padding: 24px 32px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+    }
+    .event-description p {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 1.05rem;
+      white-space: pre-line;
+      margin: 0;
+    }
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-top: 0;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 16px;
+      background: #eab308;
+      border-radius: 4px;
+    }
+
+    .detail-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+      gap: 16px; 
+      margin-bottom: 32px;
+    }
+    .detail-item { 
+      padding: 24px; 
+      background: rgba(255, 255, 255, 0.02); 
+      border: 1px solid rgba(255, 255, 255, 0.05); 
+      border-radius: 16px; 
+      transition: all 0.3s ease;
+    }
+    .detail-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+    .detail-label { 
+      font-size: 0.85rem; 
+      color: var(--text-muted); 
+      margin-bottom: 10px; 
+      margin-left: 32px; /* align with text, accounting for icon + gap */
+    }
+    .detail-content {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .detail-icon {
+      font-size: 1.25rem;
+      line-height: 1.4; /* align with first line of text */
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+    .detail-value { 
+      font-weight: 600; 
+      font-size: 1.05rem;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    .detail-value-highlight {
+      color: #eab308;
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: block;
+      margin-top: 6px;
+    }
     .restriction-banner {
       background: rgba(59, 130, 246, 0.05);
       border: 1px solid rgba(59, 130, 246, 0.2);
@@ -463,11 +590,275 @@ import { ShinyTextComponent } from '../../../shared/components/shiny-text/shiny-
     cursor: not-allowed;
     transform: none;
   }
+
+    /* ── Static single-image banner ───────────────────────────────────── */
+    .static-banner {
+      position: relative;
+      height: 420px;
+      border-radius: 18px;
+      overflow: hidden;
+      margin-top: 8px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .static-banner-bg {
+      position: absolute;
+      inset: -40px;
+      background-size: cover;
+      background-position: center;
+      filter: blur(25px) brightness(0.55);
+      opacity: 0.85;
+      transform: scale(1.12);
+    }
+    .static-banner-fg {
+      position: absolute;
+      inset: 0;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      z-index: 1;
+    }
+
+    /* ── 3-D Carousel wrapper ──────────────────────────────────────────── */
+    .carousel-wrapper {
+      position: relative;
+      margin-top: 12px;
+      margin-bottom: 8px;
+      padding: 24px 0 16px;
+      border-radius: 22px;
+      overflow: hidden;
+    }
+
+    /* Ambient gradient background of the entire carousel section */
+    .carousel-bg-gradient {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        ellipse 120% 80% at 50% 60%,
+        rgba(168, 85, 247, 0.12) 0%,
+        rgba(99, 102, 241, 0.08) 40%,
+        rgba(15, 23, 42, 0.0) 100%
+      );
+      pointer-events: none;
+    }
+
+    /*
+     * The "stage" creates a 3-D perspective space.
+     * All child .carousel-item elements are positioned relative to this.
+     */
+    .carousel-stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1200px;          /* Controls depth of 3-D field */
+      height: 380px;
+      position: relative;
+    }
+
+    /* ── Shared card styles ── */
+    .carousel-item {
+      position: absolute;
+      background-size: cover;
+      background-position: center;
+      border-radius: 16px;
+      cursor: pointer;
+      /*
+       * Smooth glide for ALL animatable properties.
+       * cubic-bezier(0.25, 0.46, 0.45, 0.94) = ease-out quad:
+       *   fast initial movement that decelerates naturally into the target,
+       *   giving the impression of weight gliding into focus.
+       */
+      transition:
+        transform  0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        opacity    0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        box-shadow 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        filter     0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      will-change: transform, opacity, filter;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    /*
+     * CENTER card:
+     *   - Full size (65% of stage width, tall)
+     *   - No rotation, no translateZ depression → foregrounded via z-index
+     *   - Bright, sharp, no grey filter
+     */
+    .carousel-center {
+      width: 62%;
+      height: 340px;
+      transform: translateX(0) scale(1) rotateY(0deg);
+      z-index: 10;
+      opacity: 1;
+      box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255,255,255,0.07);
+      filter: none;
+    }
+
+    /*
+     * LEFT card:
+     *   - Shifted left (−34% of container), pushed back (scale 0.72)
+     *   - Rotated +28° around Y-axis → curved perspective look
+     *   - Semi-transparent, darker → sense of depth
+     *   - Clips the card on a partial basis using translateZ only in perspective
+     */
+    .carousel-left {
+      width: 62%;
+      height: 340px;
+      transform:
+        translateX(-52%)           /* horizontal offset to the left  */
+        scale(0.74)                /* shrink to create depth          */
+        rotateY(28deg);            /* tilt away from viewer          */
+      z-index: 5;
+      opacity: 0.72;
+      filter: brightness(0.75) saturate(0.85);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    }
+    .carousel-left:hover {
+      /*
+       * Glide toward center:
+       *   translateX: −52% → −26%  (moves ~half the distance to center)
+       *   scale:        0.74 → 0.90 (grows noticeably larger, near center size)
+       *   rotateY:      28°  →  8°  (flattens the tilt, card faces the viewer)
+       *   opacity/filter: fully bright, no dimming
+       */
+      opacity: 1;
+      filter: brightness(1) saturate(1.05);
+      transform:
+        translateX(-26%)
+        scale(0.90)
+        rotateY(8deg);
+      z-index: 8;                   /* lift above right card during hover */
+      box-shadow:
+        0 28px 70px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    /*
+     * RIGHT card:
+     *   - Mirror of LEFT but shifted right, rotated −28°
+     */
+    .carousel-right {
+      width: 62%;
+      height: 340px;
+      transform:
+        translateX(52%)
+        scale(0.74)
+        rotateY(-28deg);
+      z-index: 5;
+      opacity: 0.72;
+      filter: brightness(0.75) saturate(0.85);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    }
+    .carousel-right:hover {
+      /*
+       * Mirror of left — glide toward center:
+       *   translateX: +52% → +26%
+       *   scale:        0.74 → 0.90
+       *   rotateY:     −28° → −8°
+       */
+      opacity: 1;
+      filter: brightness(1) saturate(1.05);
+      transform:
+        translateX(26%)
+        scale(0.90)
+        rotateY(-8deg);
+      z-index: 8;
+      box-shadow:
+        0 28px 70px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    /* ── Hover arrow chevrons ── */
+    .carousel-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 3.5rem;
+      line-height: 1;
+      color: rgba(255,255,255,0.85);
+      text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    .carousel-arrow-left  { left:  10px; }
+    .carousel-arrow-right { right: 10px; }
+
+    .carousel-left:hover  .carousel-arrow-left,
+    .carousel-right:hover .carousel-arrow-right {
+      opacity: 1;
+    }
+
+    /* ── Dot indicators on center card ── */
+    .carousel-dots {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 7px;
+      z-index: 2;
+    }
+    .carousel-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .carousel-dot-active {
+      background: #fff;
+      transform: scale(1.35);
+    }
+
+    /* ── Caption below carousel ── */
+    .carousel-caption {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-top: 8px;
+      letter-spacing: 0.04em;
+    }
+
+    /*
+     * Kills ALL CSS transitions on a slot for one frame so the wrapping
+     * card can be teleported to its new position without animating there.
+     * Applied → removed in a single requestAnimationFrame cycle.
+     */
+    .no-transition {
+      transition: none !important;
+    }
+
+    /*
+     * Fades the wrapping card out while the two main slides are in motion.
+     * Uses a shorter duration so it disappears before the other cards arrive.
+     */
+    .carousel-slot-fading {
+      opacity: 0 !important;
+      transition: opacity 0.22s ease !important;
+    }
 `]
 })
 export class EventDetailComponent implements OnInit, OnDestroy {
   event: ScanEvent | null = null;
   loading = true;
+
+  // ── Carousel state ────────────────────────────────────────────────────────
+  /** Index into event.image_urls that is currently in the CENTER slot. */
+  activeIndex = 0;
+
+  /**
+   * Three persistent slot descriptors. Each slot is a stable DOM element
+   * (tracked by `id`) that independently owns its image index and
+   * visual position class. Moving between positions is handled by changing
+   * `position` — the shared CSS transition on .carousel-item does the rest.
+   */
+  carouselSlots: { id: number; imgIndex: number; position: 'left' | 'center' | 'right'; fading: boolean; noTransition: boolean }[] = [];
+
+  /** Guard flag — prevents double-firing during a transition. */
+  isAnimating = false;
 
   // Standard mode
   quantity = 1;
@@ -529,6 +920,9 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         this.event = event;
         this.loading = false;
 
+        // Initialise 3-slot carousel descriptors now that image_urls is available
+        this.initCarousel();
+
         // Fetch how many tickets this attendee already owns for this event
         if (this.auth.isAuthenticated && !this.auth.isOrganizer) {
           this.ticketService.getMyTicketCountForEvent(event.id).subscribe({
@@ -565,6 +959,158 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() { }
+
+  // ── Carousel helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Initialises the 3 slot descriptors after the event loads.
+   * Slot 0 = left, Slot 1 = center, Slot 2 = right.
+   */
+  initCarousel(): void {
+    if (!this.event?.image_urls?.length) return;
+    const total = this.event.image_urls.length;
+    this.carouselSlots = [
+      { id: 0, imgIndex: (this.activeIndex - 1 + total) % total, position: 'left',   fading: false, noTransition: false },
+      { id: 1, imgIndex: this.activeIndex,                        position: 'center', fading: false, noTransition: false },
+      { id: 2, imgIndex: (this.activeIndex + 1) % total,          position: 'right',  fading: false, noTransition: false },
+    ];
+  }
+
+  /** Builds the CSS class string for a slot based on its current state. */
+  getSlotClass(slot: { position: string; fading: boolean; noTransition: boolean }): string {
+    let cls = `carousel-item carousel-${slot.position}`;
+    if (slot.fading)       cls += ' carousel-slot-fading';
+    if (slot.noTransition) cls += ' no-transition';
+    return cls;
+  }
+
+  /**
+   * Dispatches to rotateRight / rotateLeft based on which slot was hovered.
+   * No-op for the center slot or while an animation is in progress.
+   */
+  onSlotHover(slot: { position: string }): void {
+    if (this.isAnimating) return;
+    if (slot.position === 'left')  this.rotateRight();
+    if (slot.position === 'right') this.rotateLeft();
+  }
+
+  /**
+   * Right card → center (next image comes into focus).
+   *
+   * Motion plan:
+   *   • rightSlot:  carousel-right  →  carousel-center   (slides left into center)
+   *   • centerSlot: carousel-center →  carousel-left     (slides left into left)
+   *   • leftSlot:   fades out; after slide completes, teleports to right with new image
+   */
+  rotateLeft(): void {
+    if (this.isAnimating || !this.event?.image_urls?.length) return;
+    this.isAnimating = true;
+    const total = this.event.image_urls.length;
+
+    const leftSlot   = this.carouselSlots.find(s => s.position === 'left')!;
+    const centerSlot = this.carouselSlots.find(s => s.position === 'center')!;
+    const rightSlot  = this.carouselSlots.find(s => s.position === 'right')!;
+
+    // 1. Fade out the wrapping slot (left) immediately
+    leftSlot.fading = true;
+
+    // 2. Reclassify the two sliding slots — CSS transition fires automatically
+    rightSlot.position  = 'center';
+    centerSlot.position = 'left';
+    this.cdr.detectChanges();
+
+    // 3. After the CSS transition finishes, clean up & update content
+    setTimeout(() => {
+      // Update activeIndex to the image that is now at center
+      this.activeIndex = rightSlot.imgIndex;
+
+      // Teleport leftSlot to the right without any transition
+      leftSlot.fading       = true;        // keep invisible while teleporting
+      leftSlot.noTransition = true;
+      leftSlot.position     = 'right';
+      leftSlot.imgIndex     = (this.activeIndex + 1) % total;
+      this.cdr.detectChanges();
+
+      // One RAF: remove no-transition, then fade back in
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          leftSlot.noTransition = false;
+          leftSlot.fading       = false;
+          this.isAnimating      = false;
+          this.cdr.detectChanges();
+        });
+      });
+    }, 620);
+  }
+
+  /**
+   * Left card → center (previous image comes into focus).
+   *
+   * Motion plan:
+   *   • leftSlot:   carousel-left   →  carousel-center   (slides right into center)
+   *   • centerSlot: carousel-center →  carousel-right    (slides right into right)
+   *   • rightSlot:  fades out; after slide completes, teleports to left with new image
+   */
+  rotateRight(): void {
+    if (this.isAnimating || !this.event?.image_urls?.length) return;
+    this.isAnimating = true;
+    const total = this.event.image_urls.length;
+
+    const leftSlot   = this.carouselSlots.find(s => s.position === 'left')!;
+    const centerSlot = this.carouselSlots.find(s => s.position === 'center')!;
+    const rightSlot  = this.carouselSlots.find(s => s.position === 'right')!;
+
+    // 1. Fade out the wrapping slot (right) immediately
+    rightSlot.fading = true;
+
+    // 2. Reclassify the two sliding slots — CSS transition fires automatically
+    leftSlot.position   = 'center';
+    centerSlot.position = 'right';
+    this.cdr.detectChanges();
+
+    // 3. After the CSS transition finishes, clean up & update content
+    setTimeout(() => {
+      // Update activeIndex to the image that is now at center
+      this.activeIndex = leftSlot.imgIndex;
+
+      // Teleport rightSlot to the left without any transition
+      rightSlot.fading       = true;       // keep invisible while teleporting
+      rightSlot.noTransition = true;
+      rightSlot.position     = 'left';
+      rightSlot.imgIndex     = (this.activeIndex - 1 + total) % total;
+      this.cdr.detectChanges();
+
+      // One RAF: remove no-transition, then fade back in
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          rightSlot.noTransition = false;
+          rightSlot.fading       = false;
+          this.isAnimating       = false;
+          this.cdr.detectChanges();
+        });
+      });
+    }, 620);
+  }
+
+  /**
+   * Jump directly to a specific image index (dot indicator click).
+   * Determines direction and delegates to rotateLeft/rotateRight.
+   */
+  goToIndex(targetIndex: number): void {
+    if (this.isAnimating || !this.event?.image_urls?.length) return;
+    if (targetIndex === this.activeIndex) return;
+    const total = this.event.image_urls.length;
+    // Determine shortest-path direction
+    const fwd = (targetIndex - this.activeIndex + total) % total;
+    const bwd = (this.activeIndex - targetIndex + total) % total;
+    if (fwd <= bwd) {
+      // Advance forward (right card direction) repeatedly — but for simplicity
+      // do a single step toward the target
+      this.rotateLeft();
+    } else {
+      this.rotateRight();
+    }
+  }
 
   onSeatSelectionChanged(seats: EventSeat[]) {
     this.selectedSeats = seats;

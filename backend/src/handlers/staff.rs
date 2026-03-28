@@ -364,23 +364,26 @@ pub async fn scanner_scan(
     // Begin transaction
     let mut tx = state.db.begin().await?;
 
-    // SELECT ticket FOR UPDATE
-    let ticket_exists: Option<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM tickets WHERE id = $1 FOR UPDATE",
+    // SELECT ticket FOR UPDATE and fetch current owner info
+    let ticket_info: Option<(Uuid, Uuid, Option<Uuid>, Option<String>)> = sqlx::query_as(
+        "SELECT id, user_id, original_user_id, transferred_to_name FROM tickets WHERE id = $1 FOR UPDATE",
     )
     .bind(ticket_id)
     .fetch_optional(&mut *tx)
     .await?;
 
-    if ticket_exists.is_none() {
-        tx.rollback().await.ok();
-        return Ok(Json(ScanResponse {
-            status: "INVALID_TICKET".to_string(),
-            message: "Invalid or forged ticket".to_string(),
-            attendee_name: None,
-        })
-        .into_response());
-    }
+    let (ticket_db_id, current_user_id, original_user_id, transferred_name) = match ticket_info {
+        Some(row) => row,
+        None => {
+            tx.rollback().await.ok();
+            return Ok(Json(ScanResponse {
+                status: "INVALID_TICKET".to_string(),
+                message: "Invalid or forged ticket".to_string(),
+                attendee_name: None,
+            })
+            .into_response());
+        }
+    };
 
     // Check if already scanned
     let already_scanned: Option<Uuid> = sqlx::query_scalar(
@@ -432,13 +435,20 @@ pub async fn scanner_scan(
 
     tx.commit().await?;
 
-    // Fetch attendee name
-    let attendee_name: Option<String> = sqlx::query_scalar(
-        "SELECT full_name FROM users WHERE id = $1",
-    )
-    .bind(user_id)
-    .fetch_optional(&state.db)
-    .await?;
+    let mut attendee_name: Option<String> = None;
+
+    if Some(current_user_id) == original_user_id && transferred_name.is_some() {
+        // Pending transfer to unregistered recipient uses transferred name
+        attendee_name = transferred_name;
+    } else {
+        // Normal purchase or registered recipient uses their profile name
+        attendee_name = sqlx::query_scalar(
+            "SELECT full_name FROM users WHERE id = $1",
+        )
+        .bind(current_user_id)
+        .fetch_optional(&state.db)
+        .await?;
+    }
 
     Ok(Json(ScanResponse {
         status: "VALID_TICKET".to_string(),
@@ -521,8 +531,14 @@ pub async fn list_scanned_attendees(
         r#"
         SELECT 
             st.ticket_id,
-            u.full_name as attendee_name,
-            u.email as attendee_email,
+            COALESCE(
+                CASE WHEN t.original_user_id = t.user_id THEN t.transferred_to_name ELSE NULL END, 
+                u.full_name
+            ) as attendee_name,
+            COALESCE(
+                CASE WHEN t.original_user_id = t.user_id THEN t.transferred_to_email ELSE NULL END, 
+                u.email
+            ) as attendee_email,
             t.ticket_type,
             st.scanned_at
         FROM scanned_tickets st

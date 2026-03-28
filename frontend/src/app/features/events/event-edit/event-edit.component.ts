@@ -25,7 +25,7 @@ import { environment } from '../../../../environments/environment';
         <p>Update your event details. Some fields are locked once tickets are sold.</p>
       </div>
 
-      <div class="glass-card" style="padding:40px;max-width:760px;margin: 0 auto;">
+      <div class="glass-card form-card">
         @if (error) { <div class="alert alert-danger">{{ error }}</div> }
         @if (success) { <div class="alert alert-success">{{ success }}</div> }
 
@@ -38,20 +38,20 @@ import { environment } from '../../../../environments/environment';
           <form #eventForm="ngForm" (ngSubmit)="onSubmit()">
             <div class="form-group">
               <label>Event Title *</label>
-              <input class="form-control" [(ngModel)]="title" name="title" placeholder="Event Title" required>
+              <input class="form-control" [(ngModel)]="title" name="title" placeholder="e.g. TechX Summit, Sufi Under the Stars" required>
             </div>
 
             <div class="form-group">
               <label>Description *</label>
               <textarea class="form-control" [(ngModel)]="description" name="description"
-                        placeholder="Tell attendees what makes this event special..." rows="4" required></textarea>
+                        placeholder="Tell attendees what makes this event special — vibe, experience, highlights, and why they should come." rows="4" required></textarea>
             </div>
 
             <div class="form-group" style="position:relative">
               <label>📍 Location *</label>
               <input class="form-control" [(ngModel)]="location" name="location"
                      [disabled]="ticketsSold > 0"
-                     placeholder="e.g. Phoenix Marketcity, Pune" required
+                     placeholder="e.g. Phoenix Marketcity, Pune • JW Marriott, Mumbai • Open Air Arena, Delhi" required
                      (ngModelChange)="onLocationInput($event)" autocomplete="off">
               
               @if (isSearchingLocation) {
@@ -75,13 +75,14 @@ import { environment } from '../../../../environments/environment';
 
             <div class="form-group">
               <label>📸 Event Photos (Existing & New) *</label>
-              <div class="custom-file-input" style="margin-bottom: 12px;">
-                <button type="button" class="btn-file-select" (click)="fileInput.click()">Add Photos</button>
+              <div class="custom-file-input">
+                <button type="button" class="btn-file-select" (click)="fileInput.click()">Choose Files</button>
                 <span class="file-name-label">
                   {{ selectedFiles.length + existingImageUrls.length }} file(s) total
                 </span>
                 <input #fileInput type="file" style="display:none" multiple accept="image/*" (change)="onFilesSelected($event)">
               </div>
+              <small class="form-hint" style="margin-bottom: 12px;">Photos are updated immediately. The first photo is your cover photo.</small>
               
               <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
                 <!-- Existing Images -->
@@ -105,10 +106,9 @@ import { environment } from '../../../../environments/environment';
                   </div>
                 }
               </div>
-              <small class="form-hint">Photos are updated immediately. The first photo is yours cover photo.</small>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div class="form-grid">
               <div class="form-group">
                 <label>Event Date & Time *</label>
                 <input type="datetime-local" class="form-control" [(ngModel)]="eventDate" name="event_date" 
@@ -128,54 +128,82 @@ import { environment } from '../../../../environments/environment';
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div class="form-grid">
               <div class="form-group">
                 <label>🚪 Gate Opens At *</label>
                 <input type="datetime-local" class="form-control" [(ngModel)]="gateOpenTime" name="gate_open_time"
                        [disabled]="ticketsSold > 0" required>
+                <small class="form-hint">When gates open for attendees</small>
               </div>
               <div class="form-group">
                 <label>🏁 Event Ends At *</label>
                 <input type="datetime-local" class="form-control" [(ngModel)]="eventEndTime" name="event_end_time"
                        [disabled]="ticketsSold > 0" required>
+                <small class="form-hint">When the event officially ends</small>
               </div>
             </div>
 
             <div class="form-group">
               <label>🗺️ Google Maps Venue Link *</label>
               <input type="url" class="form-control" [(ngModel)]="googleMapsUrl" name="google_maps_url"
-                     placeholder="https://maps.google.com/..." required>
+                     placeholder="https://maps.google.com/?q=..." required>
+              <small class="form-hint">Paste the Google Maps link of the venue</small>
               @if (googleMapsUrl && !isValidMapsUrl(googleMapsUrl)) {
                 <span style="color:var(--danger);font-size:0.78rem">Please enter a valid URL (must start with http)</span>
               }
             </div>
 
-            <div [style.display]="seatMapEnabled ? 'grid' : 'block'" [style.grid-template-columns]="seatMapEnabled ? '1fr 1fr' : 'none'" style="gap:20px">
-              <div class="form-group">
-                <label>Ticket Price (₹) *</label>
-                <input type="text" class="form-control" [(ngModel)]="ticketPrice"
-                       [disabled]="ticketsSold > 0" name="ticket_price"
-                       (input)="enforceDecimal($event)" required>
-              </div>
-              @if (seatMapEnabled) {
-                <div class="form-group">
-                  <label>VIP Price (₹) *</label>
-                  <input type="text" class="form-control" [(ngModel)]="vipPrice"
-                         [disabled]="ticketsSold > 0" name="vip_price"
-                         (input)="enforceDecimal($event)" required>
+            <div class="seat-toggle-card" [style.borderColor]="isFreeEvent ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.1)'" 
+                 [style.background]="isFreeEvent ? 'rgba(16,185,129,0.03)' : 'transparent'" style="margin-bottom:20px">
+              <div class="seat-toggle-header" (click)="ticketsSold === 0 ? (isFreeEvent = !isFreeEvent) : null" 
+                   [style.background]="isFreeEvent ? 'rgba(16,185,129,0.05)' : 'transparent'" [style.cursor]="ticketsSold > 0 ? 'not-allowed' : 'pointer'">
+                <div>
+                  <div class="seat-toggle-title" [style.color]="isFreeEvent ? '#10b981' : 'inherit'">✨ This is a Free Event</div>
+                  <div class="seat-toggle-sub">Attendees can book without any ticket price</div>
                 </div>
+                <label class="toggle-switch" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [(ngModel)]="isFreeEvent" name="is_free_event" [disabled]="ticketsSold > 0">
+                  <span class="slider" [style.background]="isFreeEvent ? '#10b981' : ''"></span>
+                </label>
+              </div>
+              @if (ticketsSold > 0) {
+                <div style="padding: 4px 20px 12px;"><small class="form-hint" style="color:var(--warning); margin: 0;">Pricing type cannot be changed after tickets are sold.</small></div>
               }
             </div>
 
-            <div class="form-group">
-              <label>Refund Policy *</label>
-              <div class="custom-select-wrapper">
-                <select class="form-control custom-select" [(ngModel)]="refundPolicy" name="refund_policy" required>
-                  <option value="NON_REFUNDABLE">🔒 Non-Refundable</option>
-                  <option value="REFUNDABLE">💸 Refundable (– 24h)</option>
-                </select>
+            @if (!isFreeEvent) {
+              <div [class.form-grid]="seatMapEnabled">
+                <div class="form-group">
+                  <label>Ticket Price (₹) *</label>
+                  <input type="text" class="form-control" [(ngModel)]="ticketPrice"
+                         [disabled]="ticketsSold > 0" name="ticket_price" placeholder="25.00"
+                         (input)="enforceDecimal($event)" required>
+                </div>
+                @if (seatMapEnabled) {
+                  <div class="form-group">
+                    <label>VIP Price (₹) *</label>
+                    <input type="text" class="form-control" [(ngModel)]="vipPrice"
+                           [disabled]="ticketsSold > 0" name="vip_price" placeholder="75.00"
+                           (input)="enforceDecimal($event)" required>
+                  </div>
+                }
               </div>
-            </div>
+            }
+
+            @if (!isFreeEvent) {
+              <div class="form-group">
+                <label>Refund Policy *</label>
+                <div class="custom-select-wrapper">
+                  <select class="form-control custom-select" [(ngModel)]="refundPolicy" name="refund_policy" required>
+                    <option value="NON_REFUNDABLE">🔒 Non-Refundable</option>
+                    <option value="REFUNDABLE">💸 Refundable (– 24h)</option>
+                  </select>
+                </div>
+                <small class="form-hint" style="margin-top:8px; display:block;">
+                  Refunds are only eligible when ticket cancellation happens at least 24 hours before event start.
+                </small>
+              </div>
+            }
 
             <!-- ── Seat Layout Toggle ────────────────────────────────────── -->
             <div class="seat-toggle-card">
@@ -206,7 +234,7 @@ import { environment } from '../../../../environments/environment';
                       </label>
                     </div>
                   </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                  <div class="form-grid">
                     <div class="form-group" style="margin-bottom:0">
                       <label>Rows *</label>
                       <input type="number" class="form-control"
@@ -214,6 +242,7 @@ import { environment } from '../../../../environments/environment';
                              placeholder="10" min="1" max="500"
                              [disabled]="ticketsSold > 0"
                              (ngModelChange)="recalcTotal()">
+                      <small class="form-hint">Max 500 rows (A–Z, AA, AB...)</small>
                     </div>
                     <div class="form-group" style="margin-bottom:0">
                       <label>Seats per Row *</label>
@@ -222,21 +251,25 @@ import { environment } from '../../../../environments/environment';
                              placeholder="20" min="1" max="100"
                              [disabled]="ticketsSold > 0"
                              (ngModelChange)="recalcTotal()">
+                      <small class="form-hint">Max 100 per row</small>
                     </div>
                   </div>
                   @if (ticketsSold > 0) {
-                    <small class="form-hint" style="color:var(--warning)">Seat configuration cannot be changed after tickets are sold.</small>
+                    <small class="form-hint" style="color:var(--warning); display:block; margin-top:12px;">Seat configuration cannot be changed after tickets are sold.</small>
                   }
 
                   @if (seatRows && seatColumns) {
                     <div class="seat-preview">
                       <span>
-                        Generates <strong>{{ totalSeats }} seats</strong> ({{ seatRows }} rows × {{ seatColumns }} seats)
+                        Generates
+                        <strong>{{ formatRowRange(seatRows) }}</strong> ×
+                        <strong>1–{{ seatColumns }}</strong> =
+                        <strong>{{ totalSeats }} seats</strong>
                       </span>
                     </div>
 
                     <!-- Mini visual preview -->
-                    <div class="mini-map-wrapper" style="margin-top: 20px;">
+                    <div class="mini-map-wrapper">
                       @if (seatLayout === 'grid') {
                         <div class="mini-map">
                           <div class="mini-rows-container">
@@ -246,14 +279,14 @@ import { environment } from '../../../../environments/environment';
                                 @for (c of previewCols; track c) {
                                   <span class="mini-seat"></span>
                                 }
-                                @if (seatColumns! > 8) {
+                                @if (seatColumns > 8) {
                                   <span class="mini-ellipsis">…</span>
                                 }
                               </div>
                             }
                           </div>
-                          @if (seatRows! > 5) {
-                            <div class="mini-more">+ {{ seatRows! - 5 }} more row(s)</div>
+                          @if (seatRows > 5) {
+                            <div class="mini-more">+ {{ seatRows - 5 }} more row(s)</div>
                           }
                         </div>
                       } @else {
@@ -265,7 +298,7 @@ import { environment } from '../../../../environments/environment';
                             }
                           }
                         </div>
-                        @if (seatRows! > 5 || seatColumns! > 8) {
+                        @if (seatRows > 5 || seatColumns > 8) {
                           <div class="mini-more">+ more seats hidden in preview</div>
                         }
                       }
@@ -274,26 +307,44 @@ import { environment } from '../../../../environments/environment';
                 </div>
               }
             </div>
+            
+            @if (!loading && !eventForm.valid && eventForm.touched) {
+              <div class="validation-alert" style="margin-top:24px; margin-bottom:-12px; font-weight:600; color: #f87171; background: rgba(248, 113, 113, 0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(248, 113, 113, 0.2);">
+                <span style="font-size:1.2rem">⚠️</span>
+                @if (eventForm.controls['title']?.invalid) { <span>Title is required.</span> }
+                @else if (eventForm.controls['description']?.invalid) { <span>Description is required.</span> }
+                @else if (eventForm.controls['location']?.invalid) { <span>Location is required.</span> }
+                @else if (eventForm.controls['event_date']?.invalid) { <span>Event Start Date & Time is required.</span> }
+                @else if (eventForm.controls['gate_open_time']?.invalid) { <span>Gate Open Time is required.</span> }
+                @else if (eventForm.controls['event_end_time']?.invalid) { <span>Event End Time is required.</span> }
+                @else if (eventForm.controls['google_maps_url']?.invalid) { <span>Valid Google Maps URL is required.</span> }
+                @else if (eventForm.controls['max_tickets']?.invalid) { <span>Max Tickets is required.</span> }
+                @else if (eventForm.controls['ticket_price']?.invalid) { <span>Ticket Price is required.</span> }
+                @else if (eventForm.controls['refund_policy']?.invalid) { <span>Refund Policy is required.</span> }
+                @else { <span>Please fill all required fields correctly.</span> }
+              </div>
+            }
 
-            <div style="display:flex;gap:16px;margin-top:40px;justify-content:center">
-              <button type="button" class="btn-secondary-outline btn-lg" (click)="cancel()" style="min-width:160px">
-                Back
+            <div class="form-actions-row">
+              <button type="submit" class="btn btn-primary btn-lg flex-btn btn-update-premium" 
+                      [disabled]="loading || !eventForm.valid || (seatMapEnabled && (!seatRows || !seatColumns || seatRows > 500 || seatColumns > 100)) || (selectedFiles.length + existingImageUrls.length) === 0">
+                @if (loading) {
+                  <span class="spinner" style="width:18px;height:18px;border-width:2px;margin-right:8px;"></span> UPDATING...
+                } @else { UPDATE EVENT }
               </button>
-              <button type="submit" class="btn-update-premium btn-lg" [disabled]="loading || !eventForm.valid" style="min-width:240px">
-                @if (loading) { 
-                  <span class="spinner" style="width:20px;height:20px;border-width:2px;margin-right:8px"></span> 
-                  UPDATING... 
-                } @else { 
-                   UPDATE EVENT 
-                }
-              </button>
+    
+              <button type="button" class="btn btn-secondary btn-sm cancel-btn btn-secondary-outline" (click)="cancel()" [disabled]="loading">Back</button>
             </div>
+
+            @if (seatMapEnabled && seatRows && seatRows > 500) {
+              <div style="color:#ef4444;font-size:0.85rem;margin-top:8px;text-align:center">Maximum 500 rows allowed.</div>
+            }
           </form>
         }
       </div>
     </div>
 
-    <!-- Custom Canvas Image Cropper Modal -->
+    <!-- Custom Canvas Image Cropper Modal (Root level for viewport centering) -->
     @if (imageFile) {
       <app-image-cropper
         [imageFile]="imageFile"
@@ -304,38 +355,216 @@ import { environment } from '../../../../environments/environment';
     }
   `,
   styles: [`
-    .form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block; }
-    .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 0.95rem; }
-    .alert-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: #fca5a5; }
-    .alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid var(--success); color: #86efac; }
-    .custom-file-input { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; }
-    .btn-file-select { background: #374151; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
-    .file-name-label { font-size: 0.9rem; color: var(--text-secondary); }
-    .location-suggestions-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 100; margin-top: 4px; background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .suggestion-item { padding: 10px 16px; cursor: pointer; }
-    .suggestion-item:hover { background: rgba(255,255,255,0.05); }
-    .location-spinner { position: absolute; right: 12px; top: 42px; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
-    .seat-toggle-card { border:1px solid rgba(234,179,8,.3); border-radius:12px; overflow:hidden; margin-top:8px; }
-    .seat-toggle-header { padding:16px 20px; display:flex; justify-content:space-between; align-items:center; background:rgba(234,179,8,.05); }
+    .form-card { padding: 40px; max-width: 760px; margin: 0 auto; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .form-grid > * { min-width: 0; } /* prevents grid children from overflowing their cell */
+    .form-grid input[type="datetime-local"] { width: 100%; box-sizing: border-box; }
+    .form-actions-row { 
+      display: flex; gap: 16px; margin-top: 32px; align-items: center; justify-content: center;
+    }
+    .flex-btn { flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    .cancel-btn { 
+      flex: 0 0 auto; padding: 8px 24px; height: 48px; min-width: 100px;
+      /* background: rgba(255, 255, 255, 0.05) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      color: var(--text-muted) !important; */
+    }
+
+    button:disabled {
+      background: #374151 !important;
+      color: #9ca3af !important;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+      opacity: 0.8;
+      border-color: #4b5563 !important;
+    }
+    .seat-toggle-card {
+      border:1px solid rgba(234,179,8,.3); border-radius:12px;
+      overflow:hidden; margin-top:8px;
+    }
+    .seat-toggle-header {
+      padding:16px 20px; display:flex; justify-content:space-between; align-items:center;
+      background:rgba(234,179,8,.05); transition:background .2s;
+      user-select:none;
+    }
+    .seat-toggle-header:hover { background:rgba(234,179,8,.1); }
     .seat-toggle-title { font-weight:600; font-size:1.1rem; color:var(--text-primary); margin-bottom:4px; }
     .seat-toggle-sub { font-size:.85rem; color:var(--text-muted); }
+
     .toggle-switch { position:relative; display:inline-block; width:44px; height:24px; }
     .toggle-switch input { opacity:0; width:0; height:0; }
-    .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:rgba(255,255,255,.1); transition:.4s; border-radius:24px; }
-    .slider::before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background-color:white; transition:.4s; border-radius:50%; }
-    input:checked + .slider { background:#eab308; }
+    .slider {
+      position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+      background-color:rgba(255,255,255,.1); transition:.4s; border-radius:24px;
+    }
+    .slider::before {
+      position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px;
+      background-color:white; transition:.4s; border-radius:50%;
+    }
+    input:checked + .slider { background:var(--accent-primary,#eab308); }
     input:checked + .slider::before { transform:translateX(20px); }
+
     .seat-config { padding:20px; border-top:1px solid rgba(234,179,8,.2); }
-    .seat-preview { display:flex; align-items:center; justify-content:center; padding:12px 16px; background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25); border-radius:8px; margin-top:16px; font-size:.9rem; color:var(--text-secondary); }
+    .form-hint { font-size:.75rem; color:var(--text-muted); margin-top:4px; display:block; }
+
+    .seat-preview {
+      display:flex; align-items:center; justify-content:center; padding:12px 16px;
+      background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25);
+      border-radius:8px; margin-top:16px; font-size:.9rem; color:var(--text-secondary); text-align:center;
+    }
+
     .mini-map { margin-top:14px; display:flex; flex-direction:column; gap:4px; align-items:center; }
     .mini-rows-container { display:flex; flex-direction:column; gap:4px; width:100%; align-items:center; }
     .mini-row { display: flex; gap: 4px; align-items: center; justify-content: center; width: 100%; }
     .mini-label { font-size: 0.65rem; color: var(--text-muted); width: 14px; text-align: right; }
     .mini-seat { width: 10px; height: 10px; background: rgba(56, 189, 248, 0.4); border-radius: 2px; }
-    .mini-stadium-container { position: relative; width: 140px; height: 140px; margin: 10px auto; border-radius: 50%; background: rgba(34,197,94,.1); }
-    .mini-pitch { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 25px; height: 50px; background: rgba(202, 92, 24, 0.4); border: 1px solid rgba(202, 92, 24, 0.6); font-size: 0.4rem; color: #fef3c7; display: flex; align-items: center; justify-content: center; writing-mode: vertical-lr; text-orientation: upright; }
-    .stadium-mini-seat { position: absolute; width: 6px; height: 6px; background: rgba(56, 189, 248, 0.5); border-radius: 2px 2px 0 0; top: 50%; left: 50%; margin-left: -3px; margin-top: -3px; }
+    .mini-ellipsis { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 1px; margin-left: 4px; }
+    .mini-more { text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
+
+    /* Circular Stadium-specific mini preview */
+    .mini-stadium-container {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 10px auto;
+      border-radius: 50%;
+      background: rgba(34,197,94,.1);
+    }
+    .mini-pitch {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 25px; height: 50px;
+      background: rgba(202, 92, 24, 0.4);
+      border: 1px solid rgba(202, 92, 24, 0.6);
+      font-size: 0.4rem; color: #fef3c7;
+      display: flex; align-items: center; justify-content: center;
+      writing-mode: vertical-lr; text-orientation: upright;
+      letter-spacing: 1px;
+    }
+    .stadium-mini-seat {
+      position: absolute;
+      width: 6px; height: 6px;
+      background: rgba(56, 189, 248, 0.5);
+      border-radius: 2px 2px 0 0;
+      top: 50%; left: 50%;
+      margin-left: -3px; margin-top: -3px;
+    }
     
+    .custom-file-input {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      transition: border-color 0.2s;
+    }
+    .custom-file-input:hover { border-color: rgba(234, 179, 8, 0.4); }
+    .btn-file-select {
+      background: #374151;
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-file-select:hover { background: #4b5563; }
+    .file-name-label { font-size: 0.9rem; color: var(--text-secondary); }
+
+    .location-suggestions-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      margin-top: 4px;
+      padding: 8px 0;
+      max-height: 240px;
+      overflow-y: auto;
+      background: #18181b;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .custom-select-wrapper { 
+      position: relative; 
+      margin-top: 8px;
+    }
+    .custom-select-wrapper::after {
+      content: "▼";
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .custom-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-color: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border-glass);
+      color: var(--text-primary);
+      padding: 12px 40px 12px 14px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+      height: 48px;
+    }
+    .custom-select:focus, .custom-select:hover {
+      border-color: rgba(56, 189, 248, 0.5);
+      background-color: rgba(15, 23, 42, 0.7);
+    }
+    .custom-select option {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 12px;
+    }
+    .suggestion-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .suggestion-item:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    .suggestion-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+    .suggestion-details {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .location-spinner {
+      position: absolute;
+      right: 12px;
+      top: 42px;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @media (max-width: 700px) {
+      .form-card { padding: 20px 16px; }
+      .form-grid { grid-template-columns: 1fr !important; }
+      .form-actions-row { flex-direction: column; }
+      .form-actions-row button { width: 100%; justify-content: center; }
+    }
+
     .btn-update-premium {
       background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
       color: #000;
@@ -346,9 +575,6 @@ import { environment } from '../../../../environments/environment';
       cursor: pointer;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 0 4px 15px rgba(168, 85, 247, 0.35);
-      display: flex;
-      align-items: center;
-      justify-content: center;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
@@ -360,11 +586,6 @@ import { environment } from '../../../../environments/environment';
     .btn-update-premium:active:not(:disabled) {
       transform: translateY(0);
     }
-    .btn-update-premium:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      filter: grayscale(0.5);
-    }
     .btn-secondary-outline {
       background: rgba(255, 255, 255, 0.05);
       color: var(--text-primary);
@@ -375,10 +596,13 @@ import { environment } from '../../../../environments/environment';
       cursor: pointer;
       transition: all 0.2s;
     }
-    .btn-secondary-outline:hover {
+    .btn-secondary-outline:hover:not(:disabled) {
       background: rgba(255, 255, 255, 0.1);
       border-color: rgba(255, 255, 255, 0.2);
     }
+    .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 0.95rem; }
+    .alert-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: #fca5a5; }
+    .alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid var(--success); color: #86efac; }
   `]
 })
 export class EventEditComponent implements OnInit {
@@ -396,6 +620,7 @@ export class EventEditComponent implements OnInit {
   ticketPrice: number | null = null;
   vipPrice: number | null = null;
   refundPolicy: 'REFUNDABLE' | 'NON_REFUNDABLE' = 'NON_REFUNDABLE';
+  isFreeEvent = false;
 
   initialLoading = true;
   loading = false;
@@ -477,6 +702,10 @@ export class EventEditComponent implements OnInit {
         this.maxTickets = event.max_tickets;
         this.ticketPrice = parseFloat(event.ticket_price || '0');
         this.vipPrice = parseFloat(event.vip_price || '0');
+        
+        // Infer Free Event Status
+        this.isFreeEvent = this.ticketPrice === 0;
+
         this.refundPolicy = event.refund_policy as any || 'NON_REFUNDABLE';
 
         this.existingImageUrls = event.image_urls || [];
@@ -622,6 +851,21 @@ export class EventEditComponent implements OnInit {
     this.previewCols = Array.from({ length: pCols }, (_, i) => i + 1);
   }
 
+  formatRowRange(rows: number): string {
+    const getLabel = (index: number) => {
+      let n = index;
+      let label = '';
+      while (n >= 0) {
+        label = String.fromCharCode(65 + (n % 26)) + label;
+        n = Math.floor(n / 26) - 1;
+      }
+      return label;
+    };
+    const first = getLabel(0);
+    const last = rows > 0 ? getLabel(rows - 1) : '';
+    return rows > 0 ? `${first}–${last}` : '';
+  }
+
   getMiniStadiumSeatStyle(rowIndex: number, colIndex: number, totalCols: number) {
     const radius = 35 + (rowIndex * 8);
     let angle = 0;
@@ -647,12 +891,12 @@ export class EventEditComponent implements OnInit {
       event_end_time: new Date(this.eventEndTime).toISOString(),
       google_maps_url: this.googleMapsUrl || undefined,
       max_tickets: this.maxTickets!,
-      ticket_price: this.ticketPrice!,
-      vip_price: this.vipPrice!,
+      ticket_price: this.isFreeEvent ? 0 : this.ticketPrice!,
+      vip_price: this.isFreeEvent ? undefined : this.vipPrice || undefined,
       refund_policy: this.refundPolicy,
       status: 'published', // ensure it remains published on update
       image_urls: this.existingImageUrls,
-      seat_layout: this.seatMapEnabled ? this.seatLayout : undefined
+      seat_layout: this.seatMapEnabled ? this.seatLayout : undefined,
     };
 
     this.eventService.updateEvent(this.eventId, payload).subscribe({
